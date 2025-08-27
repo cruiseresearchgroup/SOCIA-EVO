@@ -605,5 +605,6 @@ The Data Analysis Agent has been redesigned to leverage LLM capabilities for int
 
 This redesign enables the Data Analysis Agent to function as a true LLM agent, leveraging powerful language model capabilities to understand and process data rather than relying on predefined rules and hardcoded logic.
 
-## Star History
-[![Star History Chart](https://api.star-history.com/svg?repos=cruiseresearchgroup/SOCIA&type=Date)](https://www.star-history.com/#cruiseresearchgroup/SOCIA&Date)
+<!-- ## Star History -->
+
+<!-- [![Star History Chart](https://api.star-history.com/svg?repos=cruiseresearchgroup/SOCIA&type=Date)](https://www.star-history.com/#cruiseresearchgroup/SOCIA&Date) -->
