@@ -5,7 +5,7 @@
 # 
 # Dependency conflicts identified:
 # - google-genai requires anyio>=4.8.0 but openai requires anyio<4
-# - mistralai/pyautogen require httpx>=0.28.1 but may conflict with other packages
+# - mistralai/ag2 require httpx>=0.28.1 but may conflict with other packages
 # - autogen-core requires pillow>=11.0.0 which may cause compatibility issues
 #
 # To use the full feature set, you may need to install some packages separately
@@ -38,7 +38,7 @@ langchain-core==0.3.25
 langchain-text-splitters==0.3.3
 
 # AutoGen multi-agent framework (commented out due to dependency conflicts)
-# pyautogen==0.8.7
+# ag2==0.8.7
 # autogen-agentchat==0.5.3
 # autogen-core==0.5.3
 # autogen-ext==0.5.3
@@ -117,7 +117,7 @@ rpds-py>=0.24.0
 # pip install google-genai==1.11.0
 #
 # For AutoGen framework (may require pillow>=11.0.0):
-# pip install pyautogen==0.8.7 autogen-agentchat==0.5.3 autogen-core==0.5.3 autogen-ext==0.5.3
+# pip install ag2==0.8.7 autogen-agentchat==0.5.3 autogen-core==0.5.3 autogen-ext==0.5.3
 #
 # Note: Installing these packages may cause dependency conflicts with the core requirements
 # Consider using separate conda environments for different LLM providers 
