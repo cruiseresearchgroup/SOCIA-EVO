@@ -253,6 +253,34 @@ conda activate SOCIA && export OPENAI_API_KEY="your-openai-api-key-here" && expo
 
 Replace `"your-openai-api-key-here"` with your actual OpenAI API key and adjust the paths according to your system setup.
 
+```bash
+# Run in blueprint mode for rapid prototyping and concept validation
+python main.py --task "Create a simple stock market simulation with multiple trading agents" --mode blueprint --output ./output/blueprint_mode_stock
+```
+
+**Blueprint Mode Usage**: Blueprint mode offers an enhanced lightweight workflow with intelligent blueprint management, making it ideal for:
+- **Rapid prototyping**: Quickly generate simulation prototypes for concept validation
+- **Blueprint creation**: Create foundational simulation structures that can be refined later
+- **Fast iteration**: Test different simulation ideas with minimal overhead
+- **Educational purposes**: Generate example simulations for learning and demonstration
+
+Blueprint mode features enhanced workflow with ODD protocol and blueprint management:
+1. **ODD Protocol Integration**: Uses ODD (Overview, Design concepts, Details) protocol for structured task understanding
+2. **Dual-Layer Prompt Design**: System prompt from blueprint template + User prompt with specific task content
+3. **Task Understanding Integration**: Includes specialized task understanding step with blueprint-specific processing
+4. **Blueprint Initialization**: Blueprint is initialized with ODD-structured JSON output from task understanding agent
+5. **Simple Dictionary Storage**: Maintains a flexible dictionary that agents can read and modify
+6. **JSON Persistence**: Automatically saves blueprint data to JSON files after each iteration
+7. **Cross-Agent Communication**: Blueprint is accessible and modifiable by all agents
+8. **Iterative Data Collection**: Blueprint accumulates information from each iteration
+9. **Flexible Structure**: No predefined schema - agents can store any key-value data
+
+The blueprint serves as a shared data store that:
+- Allows agents to communicate and share information
+- Persists important data across iterations
+- Provides a flexible storage mechanism for any structured data
+- Can be easily extended by agents based on their specific needs
+
 ### 🎯 Auto Mode vs Manual Mode
 
 SOCIA supports two modes of operation to give you control over the feedback process:

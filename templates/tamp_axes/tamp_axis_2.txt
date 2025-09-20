@@ -1,0 +1,35 @@
+2. Experimental Objectives — pick the study mode(s)
+Choose one mode, and keep the choice to one sentence:
+
+Descriptive
+ - Core question: What does the world look like? What happened in the data?
+ - Method: Use only existing observational data to summarize, reproduce, or visualize.
+ - Examples: Reproduce historical ICU occupancy curves with a simulator; compute infection-rate distributions across subpopulations.
+ - Role: Provides an objective description of the phenomenon, but does not necessarily predict changes under interventions.
+
+Predictive (typically paired with Descriptive)
+ - Core question: If current conditions persist, what will happen next?
+ - Method: Fit models on existing data, then extrapolate within the same distribution.
+ - Example: Predict next week’s traffic on the same road segment based on historical flow.
+
+What-if (Interventional)
+ - Core question: What happens if I change an external condition?
+ - Method: Modify exogenous variables (exogenous signals) in a calibrated simulator and observe outcomes.
+ - Examples: If ICU capacity increases by 20% over the next two weeks, how much will queueing decrease? If subway frequency doubles, will morning-peak congestion ease?
+ - Distinction from Predictive: Not a passive “carry-forward” of current trends, but a simulation after deliberately altering conditions.
+
+Counterfactual
+ - Core question: In the past, what would have happened had we made a different choice?
+ - Method: Calibrate the model on realized historical data; alter certain past inputs or decisions; replay the simulation to obtain “parallel-world” results.
+ - Examples: If lockdown had begun two weeks earlier, by how much would the infection peak have been reduced? Without hospital expansion, how many additional ICU deaths would have occurred?
+ - Difference from What-if:
+    - What-if → forward-looking hypothetical.
+    - Counterfactual → backward-looking alternative history.
+
+Policy Evaluation
+ - Core question: Which policy is better? How do combinations of policies compare?
+ - Method: Treat policies as controllable levers in the simulator; under identical initial conditions, compare policy combinations by agreed KPIs (e.g., cost, congestion, mortality).
+ - Examples: Compare the effects of “extend lockdown by two weeks” vs. “accelerate vaccination”; compare “increase bus frequency” vs. “build a new metro line” for easing urban congestion.
+ - Distinction: Not a one-off hypothetical, but a systematic comparison of policy options.
+
+Answer with: the selected study mode and a brief rationale explaining the choice.

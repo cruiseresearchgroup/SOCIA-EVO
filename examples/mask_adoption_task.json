@@ -17,14 +17,6 @@
       "description": "Root Mean Square Error measuring overall predictive accuracy of mask adoption rates",
       "interpretation": "Directly interpretable as percentage deviations due to the 0-1 range",
       "formula": "RMSE = sqrt(sum((predicted_rate - actual_rate)^2) / n)"
-    },
-    "Peak Adoption Rate Error": {
-      "description": "Measures model accuracy in predicting maximum mask adoption during intervention",
-      "formula": "abs(predicted_peak_rate - actual_peak_rate)"
-    },
-    "Time-to-Peak Error": {
-      "description": "Measures model accuracy in predicting the time lag from intervention to peak behavior change",
-      "formula": "abs(predicted_peak_day - actual_peak_day)"
     }
   }
 }

@@ -1,0 +1,4 @@
+1. Phenomenon — one-sentence definition
+Goal: State the social phenomenon to explain, predict, or evaluate in this task.
+
+Answer with: one sentence defining the phenomenon.

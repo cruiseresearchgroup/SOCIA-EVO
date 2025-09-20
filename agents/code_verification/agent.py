@@ -64,7 +64,8 @@ class CodeVerificationAgent(BaseAgent):
         code: str,
         task_spec: Dict[str, Any],
         data_path: Optional[str] = None,
-        use_sandbox: bool = True
+        use_sandbox: bool = True,
+        blueprint: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
         Verify the generated simulation code.

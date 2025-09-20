@@ -1,0 +1,13 @@
+10. Data Calibration — This section focuses on three core aspects: evaluation metrics, calibration strategies, and reproducibility requirements. The goal is to ensure that models are systematically aligned with data, outcomes are validated through well-defined metrics, and the workflow remains transparent and auditable.
+
+Required elements:
+  - Evaluation: Specify the metrics and comparison dimensions used for calibrating the model against target indicators and observables.
+  - Calibration / Fitting: Explain which parameters are tuned and how they are tuned:
+     - Parameters to tune: for instance influence weights, thresholds, memory decay, mobility utility weights, travel-time coefficients, etc. (with value ranges/bounds).
+     - Objective function: for instance, minimize metrics and comparison dimensions defined in the above Evaluation part
+     - Parameters Optimization Methods: for instance, grid search, Bayesian optimization, ABC, simulated annealing, particle swarm; include early stopping and cross-validation; enforce feasibility constraints.
+     - Validation: check overfitting and robustness on validation sets or back-testing windows.
+
+Answer with: one concise paragraph covering all of the required elements above.
+
+
