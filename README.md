@@ -4,8 +4,6 @@
 
 # 🌆 SOCIA: Simulation Orchestration for Cyber-Physical-Social Intelligence and Agents
 
-<p align="center"><i>The work is in rapid progress...</i></p>
-
 <!-- Illustration Image Placeholder -->
 
 <p align="center">
