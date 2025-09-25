@@ -16,32 +16,6 @@
 
 An LLM-driven multi-agent Cyber-Physical-Social simulation generator that automatically creates simulation environments based on user requirements and data.
 
-For more details about SOCIA, please check out our [paper](https://arxiv.org/abs/2505.12006).
-
-If you use SOCIA in your research, please cite:
-```bibtex
-@article{DBLP:journals/corr/abs-2505-12006,
-  author       = {Yuncheng Hua and
-                  Ji Miao and
-                  Mehdi Jafari and
-                  Jianxiang Xie and
-                  Hao Xue and
-                  Flora D. Salim},
-  title        = {{SOCIA:} An End-to-End Agentic Framework for Automated Cyber-Physical-Social
-                  Simulator Generation},
-  journal      = {CoRR},
-  volume       = {abs/2505.12006},
-  year         = {2025},
-  url          = {https://doi.org/10.48550/arXiv.2505.12006},
-  doi          = {10.48550/ARXIV.2505.12006},
-  eprinttype    = {arXiv},
-  eprint       = {2505.12006},
-  timestamp    = {Tue, 24 Jun 2025 07:37:11 +0200},
-  biburl       = {https://dblp.org/rec/journals/corr/abs-2505-12006.bib},
-  bibsource    = {dblp computer science bibliography, https://dblp.org}
-}
-```
-
 ## ⚠️ Disclaimer  
 SOCIA generates simulator code using backbone LLMs. By using this software, you agree that:  
 - **No Liability**: The developers of SOCIA are **not responsible** for any consequences arising from the use of generated simulators (e.g., financial decisions like stock investments, medical diagnoses, or legal applications).  
@@ -632,7 +606,3 @@ The Data Analysis Agent has been redesigned to leverage LLM capabilities for int
      - Delivers structured data and analysis results for easy processing
 
 This redesign enables the Data Analysis Agent to function as a true LLM agent, leveraging powerful language model capabilities to understand and process data rather than relying on predefined rules and hardcoded logic.
-
-<!-- ## Star History -->
-
-<!-- [![Star History Chart](https://api.star-history.com/svg?repos=cruiseresearchgroup/SOCIA&type=Date)](https://www.star-history.com/#cruiseresearchgroup/SOCIA&Date) -->
