@@ -9,11 +9,16 @@ llm:
 # Available LLM providers configuration
 llm_providers:
   openai:
-    model: "gpt-4.1"  # options: gpt-4o, gpt-4-turbo, gpt-3.5-turbo, gpt-4.1-2025-04-14, etc.
+    model: "gpt-5"  # options: gpt-4.1, gpt-4o, gpt-4-turbo, gpt-3.5-turbo, gpt-4.1-2025-04-14, etc.
     temperature: 0.7
-    max_tokens: 10000
+    use_responses_api: true
+    max_output_tokens: 10000
     api_key: ""  # set via environment variable or keys.py
     timeout: 60  # seconds
+    # model: "gpt-4o"
+    # temperature: 0.7
+    # use_responses_api: false
+    # max_tokens: 4000
   gemini:
     model: "models/gemini-2.5-flash-preview-04-17"  # Must use full path including "models/" prefix
     temperature: 0.7
@@ -43,6 +48,12 @@ agents:
     prompt_template: "templates/data_analysis_prompt.txt"
     output_format: "json"
     supported_data_types: ["csv", "json", "geojson", "shapefile"]
+
+  data_analysis_odd:
+    enabled: true
+    prompt_template: "templates/data_analysis_odd_prompt.txt"
+    output_format: "json"
+    supported_data_types: ["csv", "json", "geojson", "shapefile"]
   
   model_planning:
     enabled: true
@@ -53,6 +64,12 @@ agents:
   code_generation:
     enabled: true
     prompt_template: "templates/code_generation_prompt.txt"
+    output_format: "python"
+    code_style: "pep8"
+
+  code_generation_odd:
+    enabled: true
+    prompt_template: "templates/code_generation_odd_prompt.txt"
     output_format: "python"
     code_style: "pep8"
     

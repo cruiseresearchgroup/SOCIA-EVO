@@ -1,0 +1,113 @@
+You are an expert data scientist and simulation modeler. Your task is to analyze data for designing a simulation model. Overall simulation design is: automatically generate and calibrate the simulator. This requires defining the classes and functions within the simulator, as well as how these classes and functions interact. Next, define the parameters used by these functions and classes. The inputs are the data together with the initialization of parameters. The execution involves tuning parameters through data calibration. The final outputs are the calibrated parameters and the evaluation results on the validation dataset.
+
+TASK DESCRIPTION:
+{task_description}
+
+DATA SUMMARIES:
+{file_summaries_text}
+
+Based on the provided task description and data summaries, please analyze the data and provide guidelines for simulation model construction.
+
+Your analysis must cover:
+1) Overall simulation design: State the primary objective of the simulation. Specify how the simulation initializes from inputs. Specify the execution of the simulation (should involve tuning parameters through data calibration). Specify what artifacts it outputs after execution (should be the calibrated parameters and the evaluation results on the validation dataset).
+2) Scale & Granularity: Specify time step, spatial resolution (or explicitly "non-spatial"), and population size (agents), with brief rationale.
+3) Agent Archetypes: Define the agent unit and roles; list static attributes and dynamic states; explain how the input data construct static attributes and how dynamic states update from data-derived signals.
+4) Interaction Topology: Describe how agents interact; explain how to build interactions (layers/edges/protocols) from the input data.
+5) Information propagation: Clarify whether information diffusion exists, its topology/mechanism, and how to parameterize/drive it using inputs.
+6) Exogenous Signals: Identify any external signals/interventions, how they are derived from inputs, and how they affect agent decisions.
+7) Action Decision Policy: Describe actions taken by agents and the decision policy mapping observations/signals to actions; include role-specific inputs and policy forms.
+8) Holdout: Propose a training / validation data split plan if needed. For time series, prefer first 80% of days as train and last 20% as validation; state exact ranges or the rule to compute them.
+9) Simulation Evaluation: Define evaluation metrics and how to compare simulator output artifacts against validation ground truth.
+10) Calibratable Parameters: List tunable parameters with bounds/ranges that will be used for configuring the simulation.
+
+Provide your response in the following JSON format (valid JSON only, no extra text):
+
+{{
+  "overall_simulation_design": {{
+    "objective": "what is this simulation about",
+    "initialization": "How the simulation starts from inputs (states, seeds, signals)",
+    "execution": "How to tune parameters through data calibration",
+    "outputs": ["List of simulation artifacts to produce (e.g., the calibrated parameters and the evaluation results on the validation dataset)"]
+  }},
+  "scale_granularity": {{
+    "time_step": "seconds|minutes|hours|days",
+    "spatial_resolution": "non-spatial|grid|POI|road network|other:<...>",
+    "population_size": "integer or description tied to data",
+    "rationale": "Why these scales are appropriate"
+  }},
+  "agent_archetypes": {{
+    "unit": "e.g., resident",
+    "roles": ["role1", "role2"],
+    "static_attributes": ["list of static fields mapped from inputs"],
+    "dynamic_states": ["list of dynamic states tracked over time"],
+    "construction_from_data": "How input data map to static attributes (IDs, demographics, risk, initial states, etc.)",
+    "update_from_data": "How dynamic states update using observations/signals derived from data"
+  }},
+  "interaction_topology": {{
+    "topology": "graph|hybrid|broadcast|market|spatial",
+    "layers": ["e.g., family", "work_school", "community", "all"],
+    "protocol": "p2p on layers|group broadcast|platform-level rules",
+    "construction_from_data": "How to build edges/layers from social_network / counts / metadata"
+  }},
+  "information_propagation": {{
+    "exists": true,
+    "topology": "layer(s) used for diffusion",
+    "mechanism": "e.g., neighbor fraction, threshold, broadcast rate",
+    "construction_from_data": "Which file/field drives info intensity or schedule",
+    "parameters": {{"names": ["e.g., info_rate", "neighbor_weight"], "notes": "how to estimate or tune"}}
+  }},
+  "exogenous_signals": [
+    {{
+      "name": "signal_name",
+      "construction_from_data": "which file/field defines or constrains it",
+      "observability": "which roles can observe; delay/noise if any",
+      "effect_on_agents": "how it enters decision function",
+      "bounds": "[low, high]"
+    }}
+  ],
+  "action_decision_policy": {{
+    "by_role": {{
+      "role1": {{
+        "inputs": ["observations/signals used by this role"],
+        "policy_form": "e.g., logistic with peer/self/policy terms; thresholds; inertia",
+        "parameters": ["list of per-role parameters"]
+      }},
+      "role2": {{
+        "inputs": ["..."],
+        "policy_form": "...",
+        "parameters": ["..."]
+      }}
+    }}
+  }},
+  "holdout_plan": {{
+    "method": "temporal_holdout|rolling_backtest",
+    "train_range": "e.g., day 0–23 or first 80% rule",
+    "validation_range": "e.g., day 24–29 or last 20% rule",
+    "notes": "any agent-level holdout or rolling details"
+  }},
+  "simulation_evaluation": {{
+    "metrics": [
+      {{"name": "RMSE_aggregate", "definition": "RMSE between simulated and observed daily adoption rates"}},
+      {{"name": "MAE_aggregate", "definition": "MAE between curves"}},
+      {{"name": "Brier", "definition": "Brier score for per-agent probabilities if available"}},
+      {{"name": "TransitionFit", "definition": "error on P10/P11/P01 rates vs observed"}}
+    ],
+    "comparison_method": "how to compute metrics on validation set and report (tables/plots)"
+  }},
+  "calibratable_parameters": [
+    {{
+      "name": "influence_weight_family|work_school|community",
+      "range_bounds": "[0,1] or rationale",
+      "source": "constrained by network layers / train_data dynamics",
+      "notes": "tie to topology and adoption speed"
+    }},
+    {{
+      "name": "threshold|inertia|policy_weight|info_rate|memory_decay",
+      "range_bounds": "[0,1] or problem-appropriate bounds",
+      "source": "estimated from transitions; refined via optimization",
+      "notes": "regularize to avoid overfitting"
+    }}
+  ]
+}}
+
+Return only valid JSON that can be parsed. Do not include any other explanation or text outside the JSON.

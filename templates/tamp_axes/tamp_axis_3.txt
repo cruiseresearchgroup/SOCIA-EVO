@@ -1,0 +1,8 @@
+3. Scale & Granularity — time, space, population
+
+Required elements:
+ - Time step: <seconds/minutes/hours/days>
+ - Spatial resolution: [non-spatial | grid | POI | road network | other:<…>]
+ - Population size (agents): <integer or range>
+
+Answer with: one concise paragraph specifying the temporal, spatial, and population scales the model will use.

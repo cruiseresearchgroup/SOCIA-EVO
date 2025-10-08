@@ -4,8 +4,6 @@
 
 # 🌆 SOCIA: Simulation Orchestration for Cyber-Physical-Social Intelligence and Agents
 
-<p align="center"><i>The work is in rapid progress...</i></p>
-
 <!-- Illustration Image Placeholder -->
 
 <p align="center">
@@ -15,32 +13,6 @@
 <!-- Replace this with your actual architecture diagram -->
 
 An LLM-driven multi-agent Cyber-Physical-Social simulation generator that automatically creates simulation environments based on user requirements and data.
-
-For more details about SOCIA, please check out our [paper](https://arxiv.org/abs/2505.12006).
-
-If you use SOCIA in your research, please cite:
-```bibtex
-@article{DBLP:journals/corr/abs-2505-12006,
-  author       = {Yuncheng Hua and
-                  Ji Miao and
-                  Mehdi Jafari and
-                  Jianxiang Xie and
-                  Hao Xue and
-                  Flora D. Salim},
-  title        = {{SOCIA:} An End-to-End Agentic Framework for Automated Cyber-Physical-Social
-                  Simulator Generation},
-  journal      = {CoRR},
-  volume       = {abs/2505.12006},
-  year         = {2025},
-  url          = {https://doi.org/10.48550/arXiv.2505.12006},
-  doi          = {10.48550/ARXIV.2505.12006},
-  eprinttype    = {arXiv},
-  eprint       = {2505.12006},
-  timestamp    = {Tue, 24 Jun 2025 07:37:11 +0200},
-  biburl       = {https://dblp.org/rec/journals/corr/abs-2505-12006.bib},
-  bibsource    = {dblp computer science bibliography, https://dblp.org}
-}
-```
 
 ## ⚠️ Disclaimer  
 SOCIA generates simulator code using backbone LLMs. By using this software, you agree that:  
@@ -252,6 +224,34 @@ conda activate SOCIA && export OPENAI_API_KEY="your-openai-api-key-here" && expo
 - You need agents that can adapt their behavior based on complex decision-making processes
 
 Replace `"your-openai-api-key-here"` with your actual OpenAI API key and adjust the paths according to your system setup.
+
+```bash
+# Run in blueprint mode for rapid prototyping and concept validation
+python main.py --task "Create a simple stock market simulation with multiple trading agents" --mode blueprint --output ./output/blueprint_mode_stock
+```
+
+**Blueprint Mode Usage**: Blueprint mode offers an enhanced lightweight workflow with intelligent blueprint management, making it ideal for:
+- **Rapid prototyping**: Quickly generate simulation prototypes for concept validation
+- **Blueprint creation**: Create foundational simulation structures that can be refined later
+- **Fast iteration**: Test different simulation ideas with minimal overhead
+- **Educational purposes**: Generate example simulations for learning and demonstration
+
+Blueprint mode features enhanced workflow with ODD protocol and blueprint management:
+1. **ODD Protocol Integration**: Uses ODD (Overview, Design concepts, Details) protocol for structured task understanding
+2. **Dual-Layer Prompt Design**: System prompt from blueprint template + User prompt with specific task content
+3. **Task Understanding Integration**: Includes specialized task understanding step with blueprint-specific processing
+4. **Blueprint Initialization**: Blueprint is initialized with ODD-structured JSON output from task understanding agent
+5. **Simple Dictionary Storage**: Maintains a flexible dictionary that agents can read and modify
+6. **JSON Persistence**: Automatically saves blueprint data to JSON files after each iteration
+7. **Cross-Agent Communication**: Blueprint is accessible and modifiable by all agents
+8. **Iterative Data Collection**: Blueprint accumulates information from each iteration
+9. **Flexible Structure**: No predefined schema - agents can store any key-value data
+
+The blueprint serves as a shared data store that:
+- Allows agents to communicate and share information
+- Persists important data across iterations
+- Provides a flexible storage mechanism for any structured data
+- Can be easily extended by agents based on their specific needs
 
 ### 🎯 Auto Mode vs Manual Mode
 
@@ -604,7 +604,3 @@ The Data Analysis Agent has been redesigned to leverage LLM capabilities for int
      - Delivers structured data and analysis results for easy processing
 
 This redesign enables the Data Analysis Agent to function as a true LLM agent, leveraging powerful language model capabilities to understand and process data rather than relying on predefined rules and hardcoded logic.
-
-<!-- ## Star History -->
-
-<!-- [![Star History Chart](https://api.star-history.com/svg?repos=cruiseresearchgroup/SOCIA&type=Date)](https://www.star-history.com/#cruiseresearchgroup/SOCIA&Date) -->

@@ -1,0 +1,14 @@
+7. Environment & Exogenous Signals — external world and its effects
+
+Required elements:
+ - Environment: Define how the environment changes and how it affects agents’ decisions and constraints. A set of signals that agents can read, that evolve over time, and that are bounded (clipped to physical/logical ranges, e.g., [0,1]).
+ - Exogenous Signals: quantities/interventions originating from the environment, not directly controlled by agents, and varying over time. They serve as inputs to influence agents’ decisions and constraints.
+ - Observability: which agents can see it; whether there is delay or measurement noise.
+ - Interfaces: APIs to read env signals, send/receive messages, transact, move, etc.
+
+Answer with:
+Using one concise paragraph to provide information about what the environment is, what exogenous signals exist, how they evolve and affect agents, and who can observe them:
+ - Environment: <context>. Signals: <s1, s2, …> (bounded <ranges>).
+ - Exogenous Signals: <name, source, observability, delay/noise>.
+ - Observability by role: <role1: observability …; role2: observability …>
+ - Interfaces: <observe/move/communicate/transact …>

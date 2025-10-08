@@ -1,0 +1,12 @@
+5. Interaction Topology — how agents connect & communicate
+
+Required elements:
+ - Topology: graph (typed/weighted), spatial neighborhood, market/matching, broadcast, or hybrid.
+ - Protocol: how messages/observations flow (p2p, group broadcast, platform rules).
+
+Answer with:
+Using one concise paragraph to provide information about the following elements:
+ - Interaction Topology: <graph|spatial|market|broadcast|hybrid>; layers/edge types=<…>.
+ - Communication Protocol: <p2p on layers|group broadcast|platform-level>.
+
+

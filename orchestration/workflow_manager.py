@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional
 
 from dependency_injector.wiring import inject, Provide
 from orchestration.container import AgentContainer
+from core.blueprint import Blueprint
 
 class WorkflowManager:
     """
@@ -70,6 +71,12 @@ class WorkflowManager:
         
         # Initialize historical fix log to track issues across iterations
         self.historical_fix_log = {}
+        
+        # Initialize blueprint for blueprint mode
+        self.blueprint = None
+        if self.mode == 'blueprint':
+            self.blueprint = Blueprint(self.task_description)
+            self.logger.info("Blueprint initialized for blueprint mode")
         
         # Load task file if provided
         self.task_data = None
@@ -673,6 +680,138 @@ class WorkflowManager:
             self.logger.info("Medium mode is a placeholder and not yet implemented. Stopping workflow.")
             self.state["iteration_decision"] = {"continue": False, "reason": "Medium mode not implemented."}
             
+        elif self.mode == 'blueprint':
+            # Blueprint mode workflow: Enhanced with blueprint management and task understanding
+            
+            # Step 1: Task Understanding (using blueprint-specific mode)
+            if self.task_data:
+                self.state["task_spec"] = self.agents["task_understanding"].process(
+                    task_description=self.task_description,
+                    task_data=self.task_data,
+                    mode="blueprint",
+                    blueprint=self.blueprint
+                )
+            else:
+                self.state["task_spec"] = self.agents["task_understanding"].process(
+                    task_description=self.task_description,
+                    mode="blueprint",
+                    blueprint=self.blueprint
+                )
+            self._save_artifact("task_spec", self.state["task_spec"])
+            
+            # Initialize blueprint metadata (blueprint has been filled by task understanding agent)
+            if self.current_iteration == 0:
+                self.logger.info("Setting blueprint metadata after task understanding")
+                
+                # Add blueprint-specific metadata
+                self.blueprint.set("mode", "blueprint_mode")
+                self.blueprint.set("initialization_source", "task_understanding_agent")
+                self.blueprint.set("workflow_step", "initialized")
+                
+                self.logger.info(f"Blueprint metadata set with {len(self.blueprint)} items from task understanding")
+            
+            # Save current blueprint state
+            self._save_blueprint()
+            
+            # Step 2: Skip data analysis and model planning - set to None
+            self.state["data_analysis"] = None
+            self.state["model_plan"] = None
+            
+            # Step 3: Code Generation using blueprint and task specification
+            # Load previous iteration code if exists
+            prev_code = None
+            if self.current_iteration > 0 and self.current_iteration - 1 in self.code_memory:
+                prev_code_dict = self.code_memory[self.current_iteration - 1]
+                prev_code_filename = f"simulation_code_iter_{self.current_iteration}.py"
+                if isinstance(prev_code_dict, dict) and prev_code_filename in prev_code_dict:
+                    prev_code = prev_code_dict[prev_code_filename]
+                elif isinstance(prev_code_dict, str):
+                    # Handle case where prev_code_dict is already a string
+                    prev_code = prev_code_dict
+            
+            # Generate code using CodeGenerationAgent with blueprint information
+            self.state["generated_code"] = self.agents["code_generation"].process(
+                task_spec=self.state["task_spec"],
+                data_analysis=None,  # Not used in blueprint mode
+                model_plan=None,     # Not used in blueprint mode
+                feedback=self.state["feedback"],  # Will be None in first iteration
+                data_path=self.data_path,
+                previous_code=prev_code,
+                historical_fix_log=self.historical_fix_log,
+                mode="lite",  # Use lite mode template for blueprint mode as well
+                selfloop=self.selfloop,
+                blueprint=self.blueprint  # Pass blueprint to code generation agent
+            )
+            self._save_artifact("generated_code", self.state["generated_code"])
+            
+            # Record generated code in memory and save as file
+            gen_code_dict = self.state["generated_code"]["code"]
+            self.code_memory[self.current_iteration] = {f"simulation_code_iter_{self.current_iteration + 1}.py": gen_code_dict}
+            code_file_path = os.path.join(self.output_path, f"simulation_code_iter_{self.current_iteration + 1}.py")
+            with open(code_file_path, 'w') as f:
+                f.write(self.state["generated_code"]["code"])
+            
+            # Step 4: Code Verification (lightweight in blueprint mode)
+            self.state["verification_results"] = self.agents["code_verification"].process(
+                code=self.state["generated_code"]["code"],
+                task_spec=self.state["task_spec"],
+                data_path=self.data_path,
+                use_sandbox=False,  # Skip heavy Docker-based verification in blueprint mode
+                blueprint=self.blueprint  # Pass blueprint to verification agent
+            )
+            self._save_artifact("verification_results", self.state["verification_results"])
+            
+            # Log verification results clearly
+            if self.state["verification_results"]["passed"]:
+                self.logger.info(f"Iteration {self.current_iteration + 1}: Code verification PASSED")
+            else:
+                self.logger.warning(f"Iteration {self.current_iteration + 1}: Code verification FAILED")
+                if "critical_issues" in self.state["verification_results"]:
+                    for issue in self.state["verification_results"]["critical_issues"]:
+                        self.logger.warning(f"Critical issue: {issue}")
+            
+            # If code verification failed, skip execution and evaluation
+            if not self.state["verification_results"]["passed"]:
+                self.logger.warning("Code verification failed, skipping execution and evaluation")
+                self.state["simulation_results"] = None
+                self.state["evaluation_results"] = None
+            else:
+                # Step 5: Simulation Execution using subprocess in blueprint mode
+                self.logger.info(f"Iteration {self.current_iteration + 1}: Starting simulation execution with subprocess")
+                self.state["simulation_results"] = self.agents["simulation_execution"].process(
+                    code_path=code_file_path,
+                    task_spec=self.state["task_spec"],
+                    data_path=self.data_path,
+                    mode="lite"  # Use lite mode for subprocess execution in blueprint mode
+                )
+                self._save_artifact("simulation_results", self.state["simulation_results"])
+                
+                # Log simulation execution results
+                if self.state["simulation_results"] and self.state["simulation_results"].get("execution_status") == "success":
+                    self.logger.info(f"Iteration {self.current_iteration + 1}: Simulation execution completed successfully")
+                else:
+                    summary = "Unknown error"
+                    if self.state["simulation_results"]:
+                        summary = self.state["simulation_results"].get('summary', 'Unknown error')
+                    self.logger.warning(f"Iteration {self.current_iteration + 1}: Simulation execution failed: {summary}")
+                
+                # Step 6: Result Evaluation (lightweight in blueprint mode, no comparison with ground truth)
+                self.state["evaluation_results"] = self.agents["result_evaluation"].process(
+                    simulation_results=self.state["simulation_results"],
+                    task_spec=self.state["task_spec"],
+                    data_analysis=None  # No data analysis in blueprint mode
+                )
+                self._save_artifact("evaluation_results", self.state["evaluation_results"])
+            
+            # Step 7: Update blueprint based on results
+            self._update_blueprint_from_results()
+            
+            # Step 8 & 9: Common feedback generation and iteration control
+            self._generate_feedback_and_control_iteration()
+            
+            # Save updated blueprint after each iteration
+            self._save_blueprint()
+            
         elif self.mode == 'lite':
             # Lite mode workflow: Skip task understanding, data analysis, and model planning
             # Use task description directly as task spec for code generation
@@ -827,4 +966,72 @@ class WorkflowManager:
                 json.dump(self.historical_fix_log, f, indent=2)
             self.logger.info(f"Saved historical fix log to {historical_log_path}")
         except Exception as e:
-            self.logger.error(f"Error saving historical fix log: {e}") 
+            self.logger.error(f"Error saving historical fix log: {e}")
+    
+    def _save_blueprint(self):
+        """Save the blueprint to a file."""
+        if self.blueprint is not None:
+            try:
+                blueprint_path = os.path.join(self.output_path, f"blueprint_iter_{self.current_iteration + 1}.json")
+                self.blueprint.save_to_file(blueprint_path)
+                self.logger.info(f"Blueprint saved to {blueprint_path}")
+            except Exception as e:
+                self.logger.error(f"Error saving blueprint: {e}")
+    
+    def _update_blueprint_from_results(self):
+        """Update blueprint based on current iteration results."""
+        if self.blueprint is None:
+            return
+        
+        try:
+            # Update blueprint based on verification results
+            if self.state.get("verification_results"):
+                verification = self.state["verification_results"]
+                iteration_key = f"iteration_{self.current_iteration + 1}"
+                
+                if verification.get("passed"):
+                    self.blueprint.set(f"{iteration_key}_verification", "passed")
+                else:
+                    self.blueprint.set(f"{iteration_key}_verification", "failed")
+                    issues = verification.get("critical_issues", [])
+                    if issues:
+                        self.blueprint.set(f"{iteration_key}_issues", issues[:3])  # Limit to first 3
+            
+            # Update blueprint based on simulation results
+            if self.state.get("simulation_results"):
+                sim_results = self.state["simulation_results"]
+                iteration_key = f"iteration_{self.current_iteration + 1}"
+                
+                self.blueprint.set(f"{iteration_key}_execution_status", sim_results.get("execution_status", "unknown"))
+                
+                if sim_results.get("execution_status") == "success":
+                    # Add performance metrics if available
+                    if "performance_metrics" in sim_results:
+                        perf = sim_results["performance_metrics"]
+                        if "execution_time" in perf:
+                            self.blueprint.set("last_execution_time", perf["execution_time"])
+                else:
+                    self.blueprint.set(f"{iteration_key}_error", sim_results.get('summary', 'Unknown error'))
+            
+            # Update blueprint based on generated code metadata
+            if self.state.get("generated_code") and "metadata" in self.state["generated_code"]:
+                metadata = self.state["generated_code"]["metadata"]
+                iteration_key = f"iteration_{self.current_iteration + 1}"
+                
+                # Store metadata information
+                if "entities" in metadata:
+                    self.blueprint.set(f"{iteration_key}_entities", metadata["entities"])
+                
+                if "model_type" in metadata:
+                    self.blueprint.set(f"{iteration_key}_model_type", metadata["model_type"])
+                
+                if "behaviors" in metadata:
+                    self.blueprint.set(f"{iteration_key}_behaviors", metadata["behaviors"])
+            
+            # Update iteration count
+            self.blueprint.set("total_iterations", self.current_iteration + 1)
+            
+            self.logger.debug("Blueprint updated from current iteration results")
+            
+        except Exception as e:
+            self.logger.error(f"Error updating blueprint from results: {e}") 

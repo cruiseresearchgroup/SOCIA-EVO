@@ -41,6 +41,9 @@ class BaseAgent(ABC):
             self.config = config
         
         self.prompt_template = self._load_prompt_template()
+        
+        # Cache effective max tokens to avoid repeated computation
+        self.effective_max_tokens = self._get_effective_max_tokens()
     
     def _load_prompt_template(self) -> str:
         """Load the prompt template from file."""
@@ -88,17 +91,54 @@ class BaseAgent(ABC):
             prompt = prompt.replace(f"{{{key}}}", value_str)
         return prompt
     
-    def _call_llm(self, prompt: str) -> str:
+    def _get_effective_max_tokens(self) -> int:
+        """
+        Determine the effective max tokens configured for the active LLM provider.
+        Uses provider config from config.yaml and mirrors provider-side logic:
+        - Responses API: use max_output_tokens (fallback to max_tokens, then 4000)
+        - Chat Completions: use max_tokens (fallback to max_output_tokens, then 4000)
+        """
+        try:
+            with open("config.yaml", 'r') as f:
+                global_config = yaml.safe_load(f)
+            provider_name = global_config.get("llm", {}).get("provider", "mock").lower()
+            providers_cfg = global_config.get("llm_providers", {})
+            provider_cfg = providers_cfg.get(provider_name, {})
+            use_responses_api = provider_cfg.get("use_responses_api", False)
+            cfg_max_tokens = provider_cfg.get("max_tokens")
+            cfg_max_output_tokens = provider_cfg.get("max_output_tokens")
+            if use_responses_api:
+                effective_max = (
+                    cfg_max_output_tokens
+                    if cfg_max_output_tokens is not None
+                    else (cfg_max_tokens if cfg_max_tokens is not None else 4000)
+                )
+            else:
+                effective_max = (
+                    cfg_max_tokens
+                    if cfg_max_tokens is not None
+                    else (cfg_max_output_tokens if cfg_max_output_tokens is not None else 4000)
+                )
+            # Ensure it is an int and sane
+            return int(effective_max)
+        except Exception:
+            # Fallback default
+            return 4000
+
+    def _call_llm(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Call the LLM with the provided prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters for advanced models
         
         Returns:
             The LLM's response
         """
         self.logger.debug(f"Calling LLM with prompt: {prompt[:100]}...")
+        if reasoning:
+            self.logger.debug(f"Using reasoning parameters: {reasoning}")
         
         # Get LLM configuration from global config
         try:
@@ -115,8 +155,8 @@ class BaseAgent(ABC):
         # Get LLM provider
         llm_provider = get_llm_provider(llm_config)
         
-        # Call the LLM
-        response = llm_provider.call(prompt)
+        # Call the LLM with optional reasoning parameters
+        response = llm_provider.call(prompt, reasoning=reasoning)
         return response
     
     def _parse_llm_response(self, response: str) -> Any:

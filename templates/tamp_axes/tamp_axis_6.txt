@@ -1,0 +1,10 @@
+6. Decision Policy — mapping (observations + signals) → actions
+
+Required elements:
+ - Inputs: For agents with different roles, specify their inputs (i.e., what observations and/or exogenous signals they receive).
+ - Policy: For agents with different roles, specify the concrete policy that determines what action the agent will take at the next time step.
+
+Answer with:
+Using one concise paragraph to provide information about the following elements:
+ - Inputs (observations and / or exogenous signals) by role: <role1: inputs …; role2: inputs …>
+ - Policies by role: <role1: policy …; role2: policy …>

@@ -1,0 +1,15 @@
+9. Data Usage — inputs consumed and outputs produced
+Answer with: This section emphasizes identifying data anchors (inputs/indicators) and output artifacts (tables/figures).
+
+Required elements:
+ - Evidence / Data Anchoring: Describe which data drive and constrain the model.
+ - Input Data:
+    - How is input data consumed to model the environment?
+    - How is input data consumed to construct agents’ attributes and states?
+    - How is input data consumed to define agents’ observation information?
+    - How is input data consumed to represent exogenous signals — i.e., external interventions from the environment that passively affect agents?
+ - Target indicators/observables: Then define Target indicators/observables to fit/align (e.g., daily adoption curves, travel-time distributions).
+ - Data Splits: How is input data partitioned, including the division into train/validation/test sets or rolling temporal windows, while avoiding “tuning on the test set.”
+ - Output Artifacts: List the final deliverables (for verification and appendices), such as tables, result figures, or documentation.
+
+Answer with: one concise paragraph covering all of the required elements above.

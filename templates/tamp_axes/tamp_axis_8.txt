@@ -1,0 +1,16 @@
+8. Actions & Constraints —  first list clearly what agents can do (Actions), then specify how they are allowed to do it (Constraints).
+Answer with: First enumerate the action set, then the feasibility constraints.
+
+Required elements:
+ - Action set: the action space is the set of operations available to an agent at a given time step. Is the action space discrete or continuous? It is necessary to define: What actions will agents of different roles perform (e.g., review, move, wear a mask, etc.)?
+ - Constraints: Constraints determine whether an action is feasible at the current time. Does the environment impose specific restrictions on agents of different roles?
+
+Answer with:
+using one concise paragraph first enumerating the action set, then specifying the feasibility constraints. Provide information about the following elements:
+ - Actions by role: <role1: {actions…} (discrete/continuous); role2: {actions…} (discrete/continuous)>
+ - Constraints by role: <role1: constraints …; role2: constraints …>
+
+
+
+
+

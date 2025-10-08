@@ -59,19 +59,19 @@ class CodeGenerationAgent(BaseAgent):
             self.logger.info("Using blueprint for code generation in blueprint mode")
             self.logger.debug(f"Blueprint contains {len(blueprint)} items")
         
-        # Override model_plan data_sources with processed file paths (skip in lite mode)
-        if mode != "lite" and model_plan and data_analysis and "file_references" in data_analysis:
-            self.logger.info("Overriding model_plan data_sources with processed file paths")
-            # Copy model_plan to avoid mutating original
-            model_plan = dict(model_plan)
-            new_sources = []
-            for ds in model_plan.get("data_sources", []):
-                name = ds.get("name")
-                # If processed path exists, include it
-                if name in data_analysis["file_references"]:
-                    ds["path"] = data_analysis["file_references"][name]
-                new_sources.append(ds)
-            model_plan["data_sources"] = new_sources
+        # # Override model_plan data_sources with processed file paths (skip in lite mode)
+        # if mode != "lite" and model_plan and data_analysis and "file_references" in data_analysis:
+        #     self.logger.info("Overriding model_plan data_sources with processed file paths")
+        #     # Copy model_plan to avoid mutating original
+        #     model_plan = dict(model_plan)
+        #     new_sources = []
+        #     for ds in model_plan.get("data_sources", []):
+        #         name = ds.get("name")
+        #         # If processed path exists, include it
+        #         if name in data_analysis["file_references"]:
+        #             ds["path"] = data_analysis["file_references"][name]
+        #         new_sources.append(ds)
+        #     model_plan["data_sources"] = new_sources
         
         # Build prompt from template, including original data path and blueprint
         prompt_args = {
@@ -84,14 +84,10 @@ class CodeGenerationAgent(BaseAgent):
             "mode": mode
         }
         
-        # Add blueprint information if available
-        if blueprint is not None:
-            prompt_args["blueprint_data"] = blueprint.get_data()
-        
         prompt = self._build_prompt(**prompt_args)
-        
+
         # Call LLM to generate code
-        llm_response = self._call_llm(prompt)
+        llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
         
         # Extract code from the response
         # Since code generation typically produces Python code rather than JSON,
@@ -142,29 +138,8 @@ class CodeGenerationAgent(BaseAgent):
         }
         
         self.logger.info("Code generation completed")
-        # Post-generation syntax check and auto-fix
-        try:
-            compile(result['code'], '<generated>', 'exec')
-        except SyntaxError as err:
-            self.logger.warning(f"Syntax error detected: {err}. Attempting to auto-fix via LLM.")
-            # Build fix prompt
-            fix_prompt = (
-                "The following Python code has a syntax error. Please provide a corrected version of the code.\n"
-                f"Error: {err}\n"
-                "Original code:\n```python\n" + result['code'] + "\n```\n"
-            )
-            # Call LLM to fix syntax
-            llm_fix_response = self._call_llm(fix_prompt)
-            # Extract corrected code
-            fixed_code = self._extract_code(llm_fix_response)
-            # Remove any leftover markdown fences from the LLM fix
-            fixed_code = self._strip_markdown_fences(fixed_code)
-            # Apply local docstring and entry-point fixes
-            fixed_code = self._fix_unclosed_docstrings(fixed_code)
-            fixed_code = self._ensure_entry_point(fixed_code)
-            # Update result
-            result['code'] = fixed_code
-            result['code_summary'] = self._generate_code_summary(fixed_code)
+        # Note: Syntax checking is already handled in _run_self_checking_loop
+        # No need for additional compile check here to avoid redundancy
         
         # Update blueprint if available
         if blueprint is not None:
@@ -348,6 +323,7 @@ class CodeGenerationAgent(BaseAgent):
         
         # Call LLM to perform code quality check
         llm_response = self._call_llm(prompt)
+        # llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
         
         # Parse LLM response
         try:
@@ -430,6 +406,7 @@ class CodeGenerationAgent(BaseAgent):
         
         # Call LLM to check feedback implementation
         llm_response = self._call_llm(prompt)
+        # llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
         
         # Parse LLM response
         try:
@@ -524,6 +501,7 @@ class CodeGenerationAgent(BaseAgent):
         
         # Call LLM to check historical issues
         llm_response = self._call_llm(prompt)
+        # llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
         
         # Parse LLM response
         try:
@@ -629,7 +607,8 @@ class CodeGenerationAgent(BaseAgent):
         """
         
         # Call LLM to improve code
-        llm_response = self._call_llm(prompt)
+        # llm_response = self._call_llm(prompt)
+        llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
         
         # Extract improved code
         improved_code = self._extract_code(llm_response)
@@ -667,7 +646,8 @@ class CodeGenerationAgent(BaseAgent):
         """
         
         # Call LLM to fix syntax
-        llm_response = self._call_llm(prompt)
+        # llm_response = self._call_llm(prompt)
+        llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
         
         # Extract fixed code
         fixed_code = self._extract_code(llm_response)
@@ -705,25 +685,12 @@ class CodeGenerationAgent(BaseAgent):
         Returns:
             A prompt for the LLM to generate code
         """
-        # Load the appropriate code generation prompt template based on mode
-        if mode == "lite":
-            template_name = "code_generation_prompt_litefeedback.txt"
-        elif mode == "medium":
-            template_name = "code_generation_prompt_medium.txt"
-        else:  # full
-            template_name = "code_generation_prompt.txt"
-        prompt_template_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "templates",
-            template_name
-        )
+        # Use the prompt template loaded from configuration via BaseAgent
+        prompt_template = self.prompt_template
         
-        try:
-            with open(prompt_template_path, 'r') as f:
-                prompt_template = f.read()
-        except Exception as e:
-            self.logger.error(f"Error loading code generation prompt template: {e}")
-            # Fallback to a basic prompt
+        # If no template is loaded, provide a fallback
+        if not prompt_template:
+            self.logger.warning("No prompt template loaded, using fallback template")
             prompt_template = """
             You are a code generation agent. Your task is to generate simulation code based on the following:
             
@@ -774,7 +741,8 @@ class CodeGenerationAgent(BaseAgent):
             )
         else:
             # Format for full template (uses all placeholders)
-            task_spec_str = json.dumps(task_spec, indent=2) if task_spec else "No task specification provided"
+            blueprint = {k: v for k, v in task_spec["data_analysis_result"].items() if k != "file_summaries"}
+            blueprint_str = json.dumps(blueprint, indent=2) if blueprint else "No blueprint provided"
             model_plan_str = json.dumps(model_plan, indent=2) if model_plan else "No model plan provided"
             data_analysis_str = json.dumps(data_analysis, indent=2) if data_analysis else "No data analysis provided"
             
@@ -795,13 +763,28 @@ class CodeGenerationAgent(BaseAgent):
             
             # Fill in the full template
             prompt = prompt_template.format(
-                task_spec=task_spec_str,
+                blue_print=blueprint_str,
                 model_plan=model_plan_str,
                 data_analysis=data_analysis_str,
                 feedback=feedback_str,
                 previous_code=previous_code_str,
                 data_path=data_path_str
             )
+            
+            # Add mask adoption patch if task description contains mask-wearing
+            task_description = task_spec.get('description', '').lower()
+            if 'mask-wearing' in task_description:
+                self.logger.info("Adding mask adoption temporal holdout patch to prompt")
+                mask_adoption_patch = """
+
+Temporal Holdout (STRICT):
+- Split by unique days, not by transition steps.
+- Let days = sorted(unique days in train_data.csv). Use the first 80% days for training (days_train) and the remaining 20% days for validation (val_days).
+- All training matrices must be built ONLY from days_train.
+- The forward simulation should run exactly over val_days; metrics must compare against observed ground truth on val_days.
+- If val_days is empty, raise a clear error: "No validation days available after temporal split."
+"""
+                prompt += mask_adoption_patch
         
         return prompt
     
@@ -1203,4 +1186,4 @@ from typing import Dict, List, Any, Tuple, Optional
             self.logger.debug("Blueprint updated from generated code")
             
         except Exception as e:
-            self.logger.error(f"Error updating blueprint from generated code: {e}") 
+            self.logger.error(f"Error updating blueprint from generated code: {e}")

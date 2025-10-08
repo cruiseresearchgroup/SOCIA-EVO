@@ -1,0 +1,15 @@
+4. Agent Archetypes — units, roles, inputs, state
+
+Required elements:
+ - Unit & Roles: e.g., resident, reviewer, worker; list roles.
+ - States: static (id/resources/location/preferences), dynamic (beliefs/intentions/queues).
+ - Observability & Privacy: which variables each agent can see (self/peers/environment), with noise/delay; which of an agent’s states are visible externally.
+ - Memory: whether agents retain history; update/decay rules.
+
+Answer with:
+Using one concise paragraph to provide information about the following elements:
+ - Agent unit: <e.g., resident>
+ - Roles: <role1: ...; role2: ...>
+ - States / Attributes by role: <role1: states…; role2: states…>
+ - Observability constraints: <who sees what; noise/delay assumptions>
+ - Memory: <on/off; structure; decay/update rule>

@@ -41,13 +41,17 @@ class LLMProvider:
         """
         self.config = config
         self.logger = logging.getLogger("SOCIA.LLMProvider")
+        
+        # Cache effective max tokens to avoid repeated computation
+        self.effective_max_tokens = compute_effective_max_tokens(config)
     
-    def call(self, prompt: str) -> str:
+    def call(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Call the LLM with the provided prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters for advanced models
         
         Returns:
             The LLM's response
@@ -55,17 +59,45 @@ class LLMProvider:
         raise NotImplementedError("Subclasses must implement this method")
 
 
+def compute_effective_max_tokens(provider_config: Dict[str, Any]) -> int:
+    """
+    Compute the effective max tokens based on provider configuration.
+    - Responses API: prefer max_output_tokens, fallback to max_tokens, then 4000
+    - Chat Completions: prefer max_tokens, fallback to max_output_tokens, then 4000
+    """
+    try:
+        use_responses_api = provider_config.get("use_responses_api", False)
+        cfg_max_tokens = provider_config.get("max_tokens")
+        cfg_max_output_tokens = provider_config.get("max_output_tokens")
+        if use_responses_api:
+            effective_max = (
+                cfg_max_output_tokens
+                if cfg_max_output_tokens is not None
+                else (cfg_max_tokens if cfg_max_tokens is not None else 4000)
+            )
+        else:
+            effective_max = (
+                cfg_max_tokens
+                if cfg_max_tokens is not None
+                else (cfg_max_output_tokens if cfg_max_output_tokens is not None else 4000)
+            )
+        return int(effective_max)
+    except Exception:
+        return 4000
+
+
 class OpenAIProvider(LLMProvider):
     """
     LLM provider using OpenAI's API.
     """
     
-    def call(self, prompt: str) -> str:
+    def call(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Call OpenAI's API with the provided prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters for advanced models
         
         Returns:
             The LLM's response
@@ -91,20 +123,94 @@ class OpenAIProvider(LLMProvider):
             # Configure request parameters
             model = self.config.get("model", "gpt-4")
             temperature = self.config.get("temperature", 0.7)
-            max_tokens = self.config.get("max_tokens", 4000)
-            
-            # Call the API
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
-            
-            # Extract response text
-            return response.choices[0].message.content
+            # Use cached effective max tokens
+            use_responses_api = self.config.get("use_responses_api", False)
+            effective_max = self.effective_max_tokens
+
+            def _extract_from_responses(resp_obj):
+                # Prefer unified SDK helper when available
+                if hasattr(resp_obj, "output_text") and isinstance(resp_obj.output_text, str):
+                    return resp_obj.output_text
+                # Fallback: try to navigate common structures
+                try:
+                    # New SDK formats may expose output as a list of content parts
+                    output = getattr(resp_obj, "output", None)
+                    if output and isinstance(output, list):
+                        content = output[0].get("content") if isinstance(output[0], dict) else None
+                        if content and isinstance(content, list) and len(content) > 0:
+                            text = content[0].get("text")
+                            if isinstance(text, str):
+                                return text
+                except Exception:
+                    pass
+                # Last resort: string cast
+                return str(resp_obj)
+
+            # Some newer models (e.g., gpt-5 family) require Responses API with
+            # `max_output_tokens` instead of Chat Completions `max_tokens`.
+            # Strategy:
+            # 1) If explicitly configured, call responses API directly.
+            # 2) Otherwise, try chat.completions; on 400 unsupported_parameter for
+            #    max_tokens, retry via responses API using max_output_tokens.
+            try:
+                if use_responses_api:
+                    # Base parameters for responses API
+                    responses_kwargs = {
+                        "model": model,
+                        "input": [
+                            {"role": "user", "content": [{"type": "input_text", "text": prompt}]}
+                        ],
+                        # Do not pass temperature for Responses API (some models like gpt-5 don't support it)
+                        "max_output_tokens": effective_max,
+                    }
+                    
+                    # If reasoning parameters are provided, use them and adjust max_output_tokens
+                    if reasoning:
+                        responses_kwargs.update({
+                            "reasoning": reasoning,
+                            "max_output_tokens": 100000  # Larger output for reasoning models
+                        })
+                    
+                    resp = client.responses.create(**responses_kwargs)
+                    return _extract_from_responses(resp)
+                else:
+                    chat_kwargs = {
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": temperature,
+                        "max_tokens": effective_max,
+                    }
+                    resp = client.chat.completions.create(**chat_kwargs)
+                    return resp.choices[0].message.content
+            except Exception as call_err:
+                err_str = str(call_err)
+                # Detect the specific parameter error and retry with Responses API
+                if "Unsupported parameter: 'max_tokens'" in err_str and "max_output_tokens" in err_str:
+                    try:
+                        responses_kwargs = {
+                            "model": model,
+                            "input": [
+                                {"role": "user", "content": [{"type": "input_text", "text": prompt}]}
+                            ],
+                            # Do not pass temperature for Responses API retry
+                            "max_output_tokens": effective_max,
+                        }
+                        
+                        # Apply reasoning parameters if provided
+                        if reasoning:
+                            responses_kwargs.update({
+                                "reasoning": reasoning,
+                                "max_output_tokens": 100000  # Larger output for reasoning models
+                            })
+                        
+                        resp = client.responses.create(**responses_kwargs)
+                        return _extract_from_responses(resp)
+                    except Exception as resp_err:
+                        self.logger.error(f"OpenAI Responses API retry failed: {resp_err}")
+                        return f"Error: {str(resp_err)}"
+                else:
+                    # Other errors: log and return
+                    raise
         
         except ImportError:
             self.logger.error("openai package not installed")
@@ -120,12 +226,13 @@ class GeminiProvider(LLMProvider):
     LLM provider using Google's Gemini API.
     """
     
-    def call(self, prompt: str) -> str:
+    def call(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Call Google's Gemini API with the provided prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters (not used by Gemini)
         
         Returns:
             The LLM's response
@@ -199,12 +306,13 @@ class AnthropicProvider(LLMProvider):
     LLM provider using Anthropic's API.
     """
     
-    def call(self, prompt: str) -> str:
+    def call(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Call Anthropic's API with the provided prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters (not used by Anthropic)
         
         Returns:
             The LLM's response
@@ -240,12 +348,13 @@ class LlamaProvider(LLMProvider):
     LLM provider using local Llama models.
     """
     
-    def call(self, prompt: str) -> str:
+    def call(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Call a local Llama model with the provided prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters (not used by Llama)
         
         Returns:
             The LLM's response
@@ -276,12 +385,13 @@ class MockProvider(LLMProvider):
     Mock LLM provider for testing and development.
     """
     
-    def call(self, prompt: str) -> str:
+    def call(self, prompt: str, reasoning: Optional[Dict[str, Any]] = None) -> str:
         """
         Return a mock response based on the prompt.
         
         Args:
             prompt: The prompt to send to the LLM
+            reasoning: Optional reasoning parameters (not used by mock)
         
         Returns:
             A mock response
