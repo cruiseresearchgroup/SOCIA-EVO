@@ -1,0 +1,15 @@
+id: crt2
+name: Cognitive Reflection Test 2
+
+items:
+  - id: crt2_q1
+    question: "If you're running a race and you pass the person in second place, what place are you in?"
+
+  - id: crt2_q2
+    question: "A farmer had 15 sheep and all but 8 died. How many are left?"
+
+  - id: crt2_q3
+    question: "EEmily's father has three daughters. The first two are named April and May. What is the third daughter's name?"
+
+  - id: crt2_q4
+    question: "How many cubic feet of dirt are there in a hole that is 3' deep x 3' wide x 3' long?"

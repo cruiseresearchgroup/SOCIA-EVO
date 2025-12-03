@@ -1,0 +1,182 @@
+{
+  "summary": "The refactored simulator has a clearer architecture (config/state/calibrator/simulator/evaluator), but it no longer matches the actual CSV/YAML schemas and cannot run end\u2011to\u2011end. The most urgent fixes are to (1) correctly preprocess synthetic_personas.csv into the internal schema, (2) properly parse the documented YAML structures for BFI, NFC, CRT2, and bCRT (including correct trait/key/answer mappings), and (3) realign the evaluator and CRT scoring logic to those same internal fields. Once these structural mismatches are fixed, you can refine admin_mode behavior, social network use, and prompt wording.",
+  "critical_issues": [
+    {
+      "issue": "Persona loader and internal Persona schema do not match synthetic_personas.csv",
+      "impact": "The simulation will fail at startup because required columns (persona_id, age, gender, bfi_extraversion, nfc_score, crt2_level, etc.) are not present in the real CSV. Even if it runs after manual tweaking, trait_fidelity and behavioural_alignment metrics will be meaningless because they don\u2019t use the real columns.",
+      "solution": "Add an explicit preprocessing/renaming step in _load_personas that maps the real schema (Age, sex, BFI_Extraversion, NFC_Total, CRT2_Total_adj, CRT_Combined) into the internal columns used by Persona, Evaluator, and PromptBuilder. Derive persona_id and crt2_level there.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "YAML loaders for BFI/NFC assume the wrong structure and item IDs",
+      "impact": "BFI and NFC tests cannot be loaded because _load_likert_test_from_yaml iterates the top-level YAML dict (keys 'id', 'name', 'items') instead of data['items'], and trait maps (BFI10_ITEM_TRAITS, NFC18_ITEM_TRAITS) don\u2019t match the numeric item ids. The simulator will raise exceptions on startup.",
+      "solution": "Parse the documented YAML structure explicitly: when data is a dict, iterate data['items']. For BFI-10 and NFC-18, define trait maps keyed by the numeric id values (1\u201310, 1\u201318) and compute reverse_scored from either hard-coded sets or, better, from a 'key'/'p'/'a' field if available.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "CRT loaders and scoring logic require correct_answer keys that do not exist in the YAML",
+      "impact": "crt2_items.yaml and bcrt_items.yaml currently have no correct answers. _load_crt_test_from_yaml and _validate_test_bank enforce that every item has correct_answer, leading to immediate ValueErrors. Even if you add answers later, _simulate_crt2/_simulate_bcrt overwrite simulated correctness with a strict string-equality check, making the probabilistic model redundant.",
+      "solution": "Either (a) extend the YAMLs to include correct answers, or (b) provide full crt2_correct/bcrt_correct dicts. In simulation, trust the Bernoulli draw for is_correct and do not recompute correctness via string equality; record both answer and is_correct. Relax validation until keys exist.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "Evaluator expects internal trait columns that are never created from the raw CSV",
+      "impact": "Evaluator.compute_metrics attempts to access bfi_extraversion, nfc_score, crt2_level in df_val, but load_data/_load_personas never convert the raw columns to these names. This will raise KeyError or produce NaNs, invalidating trait_fidelity, behavioural_alignment, and response_consistency metrics.",
+      "solution": "Ensure _load_personas (or a dedicated preprocessing function) creates these internal columns from BFI_*, NFC_Total, CRT2_Total_adj/CRT_Combined. Evaluator should then operate solely on the internal schema.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "Likert trait maps and reverse-keying for BFI-10 and NFC-18 are incorrect",
+      "impact": "Even after fixing YAML parsing, items will be assigned to the wrong Big Five domains and wrong reverse-scoring, corrupting simulated scale scores and trait_fidelity metrics (correlations will be noisy or close to zero).",
+      "solution": "Align BFI10_ITEM_TRAITS and BFI10_REVERSE_IDS to the actual bfi10_items.yaml content (id 1\u201310) and documented scoring; similarly, for NFC-18 derive reverse_scored from the YAML\u2019s keyed direction field (p/a) instead of hard-coded guesses.",
+      "introduced_by_changes": true
+    }
+  ],
+  "model_improvements": [
+    {
+      "aspect": "Schema alignment between raw data and internal persona representation",
+      "current_approach": "Persona.from_series expects a preprocessed schema (persona_id, age, gender, bfi_extraversion, nfc_score, crt2_level) but _load_personas simply reads synthetic_personas.csv without renaming or deriving these fields.",
+      "suggested_approach": "Introduce a clear preprocessing function (e.g., _preprocess_personas_df) that: (1) adds persona_id, (2) renames Age\u2192age, sex\u2192gender, BFI_*\u2192bfi_*, NFC_Total\u2192nfc_score, CRT2_Total_adj\u2192crt2_cont and computes crt2_level 0\u20134 from CRT_Combined or CRT2_Total_adj, and (3) keeps a copy of original columns for later analysis.",
+      "expected_benefit": "End-to-end compatibility with the provided CSV, consistent trait usage across Persona, PromptBuilder, and Evaluator, and interpretable trait_fidelity metrics."
+    },
+    {
+      "aspect": "Psychometric instrument parsing and scoring",
+      "current_approach": "Generic YAML loader assumes a flat list of items and uses manually crafted trait maps and reverse-key sets, which don\u2019t match the actual YAML structure or scoring keys.",
+      "suggested_approach": "Specialize parsing for each instrument: for BFI-10 and NFC-18, read data['items'], map item.id\u2192domain using documented keys, and derive reverse_scored from YAML (e.g., a 'key' field). For CRT2/bCRT, define correct_answer dictionaries keyed by item.id, and separate correctness flags from textual answers.",
+      "expected_benefit": "Accurate scale construction, clean scoring pipelines, and trait_fidelity metrics that genuinely reflect how well the simulator reproduces target traits."
+    },
+    {
+      "aspect": "CRT correctness modeling",
+      "current_approach": "Simulate correctness with a logistic model, then overwrite is_correct by re-checking string equality between answer and correct_answer; missing correct_answer in YAML prevents any run.",
+      "suggested_approach": "Store and use the Bernoulli draw\u2019s is_correct as the ground truth correctness flag during simulation, and treat the answer string as a display-only field. Keep equality-based scoring as an optional post-hoc check once answers exist, but don\u2019t rely on it for internal correctness.",
+      "expected_benefit": "Working CRT simulation even before textual answer keys are available, plus a cleaner separation between latent ability modeling and surface realization of answers."
+    },
+    {
+      "aspect": "Administration mode semantics",
+      "current_approach": "admin_mode branches (per_item, per_test, all_tests) exist but all paths call the same deterministic simulation methods over full tests and differ only minimally in metadata.",
+      "suggested_approach": "In TestAdministrator, structure calls so that per_item walks items in admin_metadata['item_order'] and calls single-item routines (even if internally they just index into the same distributions), per_test runs one call per test, and all_tests uses the existing aggregate call. Record per-block metadata to prepare for future LLM-based item responses.",
+      "expected_benefit": "Closer alignment with the conceptual experiment design, enabling future work on order effects and per-item LLM calls with minimal refactoring."
+    },
+    {
+      "aspect": "Prompt naturalness and consistency",
+      "current_approach": "Granular BFI prompts sometimes inject empty high/low adjectives into templates like 'neither {low_adjective} nor {high_adjective}', leading to awkward phrasing. CRT prompt always includes a numeric tag even when descriptive mode is used.",
+      "suggested_approach": "Use separate qualifier templates for low/high vs neutral levels, and only include numeric tags when crt_prompt_mode=='numeric'.",
+      "expected_benefit": "More natural persona prompts, which should improve behavioural_alignment when writing tasks are LLM-generated."
+    }
+  ],
+  "code_improvements": [
+    {
+      "file": "simulation.py",
+      "modification": "Preprocess synthetic_personas.csv into the internal schema expected by Persona and Evaluator (persona_id, age, gender, bfi_*, nfc_score, crt2_level).",
+      "reason": "Without this mapping, the simulator crashes or silently produces nonsensical trait metrics because it references columns that do not exist in the real CSV.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Fix _load_likert_test_from_yaml to handle the documented YAML structure with top-level id/name/instructions/response_scale/items, and align BFI10_ITEM_TRAITS/BFI10_REVERSE_IDS and NFC reverse-keying to the actual instruments.",
+      "reason": "Current loader iterates over the dict keys instead of the item list and uses ID conventions that do not exist in the YAML, causing immediate runtime errors.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Adjust _load_crt_test_from_yaml and _validate_test_bank to (a) iterate over data['items'], (b) accept correct_answer from either YAML or code dictionaries, and (c) not fail hard while correct answers are missing but instead set a flag to skip CRT trait_fidelity until keys exist.",
+      "reason": "As written, the code cannot load CRT tests at all because the YAML does not include correct answers, and the strict validation prevents simulation.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "In _simulate_crt2 and _simulate_bcrt, keep the Bernoulli is_correct and drop the later recomputation using answer==correct_answer as the definitive flag.",
+      "reason": "The recomputation can flip simulated correctness back to 0 if answer strings are generic ('CORRECT'/'INCORRECT') or if correct_answer is missing; this undermines the calibrated logistic model.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Update Evaluator.compute_metrics to rely only on the internal trait columns that _load_personas creates, not on raw column names, and make sure df_val is built from that preprocessed DataFrame.",
+      "reason": "Currently df_val is based on personas_df that has not been reshaped into the expected schema, leading to KeyErrors or all-NaN correlations.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Refine PersonaPromptBuilder._build_bfi_fragment granular_serapio branch to avoid filling templates with empty adjectives and to use simpler templates for non-neutral poles.",
+      "reason": "This improves the realism and clarity of persona prompts, which is important once writing tasks rely on a real LLM.",
+      "related_to_recent_changes": false
+    }
+  ],
+  "data_alignment_suggestions": [
+    {
+      "metric": "Trait fidelity (BFI domains)",
+      "current_gap": "BFI items are not correctly mapped to Big Five traits, and the raw BFI_* columns are never converted to the internal schema used by the simulator. Correlations will be undefined or misleading.",
+      "suggestion": "Create a verified mapping from each BFI-10 item id (1\u201310) to its domain and reverse-keying, update the loader to use that, and ensure internal bfi_* columns are derived directly from BFI_* in synthetic_personas.csv."
+    },
+    {
+      "metric": "Trait fidelity (NFC)",
+      "current_gap": "NFC items are treated as a generic 'nfc' trait with hard-coded reverse-key indices that may not match the scale used to generate NFC_Total.",
+      "suggestion": "Use a keyed-direction field (p/a) in nfc18_items.yaml, or add one, to derive reverse_scored per item; then validate that the simulated NFC score distribution roughly matches NFC_Total distribution in the personas."
+    },
+    {
+      "metric": "Trait fidelity (CRT2/bCRT)",
+      "current_gap": "CRT2_Total_adj / CRT_Combined are not mapped to the internal crt2_level used in prompts and scoring, and correct answers are absent, preventing trait_fidelity analysis.",
+      "suggestion": "Define a reproducible mapping from CRT_Combined (preferred, as a composite) to crt2_level (e.g., via quantiles), and either (a) add correct answers to YAML or (b) hard-code them in dictionaries so that simulated scores can be evaluated against target CRT traits."
+    },
+    {
+      "metric": "Behavioural alignment (writing features vs NFC/CRT)",
+      "current_gap": "Writing features are currently deterministic linear functions of traits; with no LLM variability, regressions will look almost perfect and not reflect real-world variability.",
+      "suggestion": "Once the core pipeline runs, progressively introduce controlled noise or partial LLM generation for writing tasks, then check whether higher NFC and CRT2 levels predict more analytic/insightful writing as expected."
+    }
+  ],
+  "prioritized_actions": [
+    "Add a robust preprocessing step in _load_personas to map synthetic_personas.csv into the internal schema (persona_id, age, gender, bfi_*, nfc_score, crt2_level) used throughout the code.",
+    "Fix _load_likert_test_from_yaml to parse data['items'] and update BFI10/NFC trait and reverse-key mappings to match the actual YAML instruments.",
+    "Fix _load_crt_test_from_yaml and _validate_test_bank to accept code-side correct_answer dictionaries for CRT2/bCRT and stop failing when YAML lacks answers.",
+    "Simplify CRT correctness logic to rely on the simulated is_correct flag instead of string equality, so CRT simulation works immediately once answers are defined.",
+    "Update Evaluator to use the preprocessed internal trait columns and verify trait_fidelity metrics on a small subset of personas.",
+    "Polish persona prompt construction (BFI, NFC, CRT fragments) to remove awkward phrasing and ensure they match the scale mapping rules specified in the task."
+  ],
+  "additional_comments": "The architectural refactor (config/state/calibration/simulation/evaluation) is a strong step towards a maintainable simulator, but it was introduced without fully re-aligning with the existing data and YAML schemas. The next iteration should focus on schema and instrument alignment rather than adding new features. Once the pipeline runs end-to-end with the current deterministic psychometrics, you can safely layer in more realistic LLM usage for tests and more sophisticated social-network dynamics.",
+  "code_snippets": [
+    {
+      "file": "simulation.py",
+      "before": "def _load_personas(personas_path: str) -> pd.DataFrame:\n    if not os.path.isfile(personas_path):\n        raise FileNotFoundError(\n            f\"Persona file '{personas_path}' not found. Ensure that \"\n            \"synthetic_personas.csv is present in the DATA_DIR.\"\n        )\n    df = pd.read_csv(personas_path)\n\n    required_cols = [\n        \"persona_id\",\n        \"age\",\n        \"gender\",\n        \"bfi_extraversion\",\n        \"bfi_agreeableness\",\n        \"bfi_conscientiousness\",\n        \"bfi_neuroticism\",\n        \"bfi_openness\",\n        \"nfc_score\",\n        \"crt2_level\",\n    ]\n    missing = [c for c in required_cols if c not in df.columns]\n    if missing:\n        raise ValueError(\n            \"synthetic_personas.csv is missing required columns: \"\n            f\"{missing}. Available columns: {list(df.columns)}.\\n\"\n            \"Please ensure the file includes these columns.\"\n        )\n\n    return df",
+      "after": "def _load_personas(personas_path: str) -> pd.DataFrame:\n    if not os.path.isfile(personas_path):\n        raise FileNotFoundError(\n            f\"Persona file '{personas_path}' not found. Ensure that \"\n            \"synthetic_personas.csv is present in the DATA_DIR.\"\n        )\n    raw = pd.read_csv(personas_path)\n\n    # Validate presence of raw columns from the documented schema\n    raw_required = [\n        \"Age\", \"sex\", \"BFI_Extraversion\", \"BFI_Agreeableness\",\n        \"BFI_Conscientiousness\", \"BFI_Neuroticism\", \"BFI_Openness\",\n        \"NFC_Total\", \"CRT2_Total_adj\", \"CRT_Combined\"\n    ]\n    missing_raw = [c for c in raw_required if c not in raw.columns]\n    if missing_raw:\n        raise ValueError(\n            \"synthetic_personas.csv is missing required columns: \"\n            f\"{missing_raw}. Available columns: {list(raw.columns)}.\"\n        )\n\n    df = raw.copy()\n    # Create internal ID and rename core fields\n    df[\"persona_id\"] = df.index.astype(str)\n    df.rename(\n        columns={\n            \"Age\": \"age\",\n            \"sex\": \"gender\",\n            \"BFI_Extraversion\": \"bfi_extraversion\",\n            \"BFI_Agreeableness\": \"bfi_agreeableness\",\n            \"BFI_Conscientiousness\": \"bfi_conscientiousness\",\n            \"BFI_Neuroticism\": \"bfi_neuroticism\",\n            \"BFI_Openness\": \"bfi_openness\",\n            \"NFC_Total\": \"nfc_score\",\n        },\n        inplace=True,\n    )\n\n    # Map continuous CRT measure to discrete 0\u20134 level (e.g., via quantiles)\n    crt_source = df[\"CRT_Combined\"] if \"CRT_Combined\" in df.columns else df[\"CRT2_Total_adj\"]\n    q = crt_source.quantile([0.2, 0.4, 0.6, 0.8])\n    def _to_level(val: float) -> int:\n        if val <= q.iloc[0]:\n            return 0\n        if val <= q.iloc[1]:\n            return 1\n        if val <= q.iloc[2]:\n            return 2\n        if val <= q.iloc[3]:\n            return 3\n        return 4\n    df[\"crt2_level\"] = crt_source.apply(_to_level).astype(int)\n\n    return df",
+      "addresses_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "before": "def _load_likert_test_from_yaml(\n    yaml_path: str,\n    test_name: str,\n    trait_map: Dict[str, str],\n    reverse_ids: Iterable[str],\n    scale_type: str = \"likert_1_5\",\n) -> PsychometricTest:\n    data = _safe_load_yaml(yaml_path)\n    if not data:\n        raise FileNotFoundError(\n            f\"Likert test definition YAML '{yaml_path}' is missing or empty.\"\n        )\n\n    reverse_ids_set = set(reverse_ids)\n    items: List[PsychometricItem] = []\n\n    for row in data:\n        item_id = (\n            row.get(\"id\")\n            or row.get(\"item_id\")\n            or row.get(\"name\")\n        )\n        text = row.get(\"text\") or row.get(\"prompt\") or row.get(\"question\")\n        if not item_id or not text:\n            raise ValueError(\n                f\"Invalid item in {yaml_path}: each entry must have id and text.\"\n            )\n        item_id_str = str(item_id)\n        trait = trait_map.get(item_id_str)\n        if trait is None:\n            raise ValueError(\n                f\"Item '{item_id_str}' in {yaml_path} not found in trait map.\"\n            )\n        reverse_scored = item_id_str in reverse_ids_set\n        items.append(\n            PsychometricItem(\n                item_id=item_id_str,\n                text=str(text),\n                trait=trait,\n                reverse_scored=reverse_scored,\n            )\n        )\n\n    instrument_id = None\n    if isinstance(data, list) and data:\n        instrument_id = os.path.basename(yaml_path)\n\n    return PsychometricTest(\n        name=test_name,\n        items=items,\n        scale_type=scale_type,\n        instrument_id=instrument_id,\n    )",
+      "after": "def _load_likert_test_from_yaml(\n    yaml_path: str,\n    test_name: str,\n    trait_map: Dict[int, str],\n    reverse_ids: Iterable[int],\n    scale_type: str = \"likert_1_5\",\n) -> PsychometricTest:\n    data = _safe_load_yaml(yaml_path)\n    if not data:\n        raise FileNotFoundError(\n            f\"Likert test definition YAML '{yaml_path}' is missing or empty.\"\n        )\n\n    if isinstance(data, dict):\n        items_src = data.get(\"items\", [])\n        instrument_id = str(data.get(\"id\", os.path.basename(yaml_path)))\n    else:\n        items_src = data\n        instrument_id = os.path.basename(yaml_path)\n\n    reverse_ids_set = set(int(r) for r in reverse_ids)\n    items: List[PsychometricItem] = []\n\n    for row in items_src:\n        if \"id\" not in row or \"text\" not in row:\n            raise ValueError(\n                f\"Invalid item in {yaml_path}: each item must have 'id' and 'text'.\"\n            )\n        raw_id = row[\"id\"]\n        item_id_int = int(raw_id)\n        text = str(row[\"text\"])\n\n        trait = trait_map.get(item_id_int)\n        if trait is None:\n            raise ValueError(\n                f\"Item id {item_id_int} in {yaml_path} not found in trait map.\"\n            )\n\n        reverse_scored = item_id_int in reverse_ids_set\n        items.append(\n            PsychometricItem(\n                item_id=str(item_id_int),\n                text=text,\n                trait=trait,\n                reverse_scored=reverse_scored,\n            )\n        )\n\n    return PsychometricTest(\n        name=test_name,\n        items=items,\n        scale_type=scale_type,\n        instrument_id=instrument_id,\n    )",
+      "addresses_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "before": "def _load_crt_test_from_yaml(\n    yaml_path: str,\n    test_name: str,\n    default_trait: str,\n    correct_answers: Optional[Dict[str, str]] = None,\n) -> PsychometricTest:\n    \"\"\"\n    Load a CRT-style test from YAML.\n\n    Correct answers must be provided either in the YAML (via a 'correct' or\n    'answer' field) or via the `correct_answers` mapping. A missing answer\n    for any item results in a ValueError.\n    \"\"\"\n    data = _safe_load_yaml(yaml_path)\n    if not data:\n        raise FileNotFoundError(\n            f\"CRT test definition YAML '{yaml_path}' is missing or empty.\"\n        )\n    correct_answers = correct_answers or {}\n    items: List[PsychometricItem] = []\n    for row in data:\n        item_id = (\n            row.get(\"id\")\n            or row.get(\"item_id\")\n            or row.get(\"name\")\n        )\n        text = row.get(\"text\") or row.get(\"prompt\") or row.get(\"question\")\n        if not item_id or not text:\n            raise ValueError(\n                f\"Invalid CRT item in {yaml_path}: each entry must have id and text.\"\n            )\n        item_id_str = str(item_id)\n\n        correct = row.get(\"correct\") or row.get(\"answer\")\n        if not correct:\n            correct = correct_answers.get(item_id_str)\n        if not correct:\n            raise ValueError(\n                f\"CRT item '{item_id_str}' in {yaml_path} is missing a correct answer. \"\n                \"Provide it either in the YAML under 'correct'/'answer' or via the \"\n                \"code-side correct_answers mapping.\"\n            )\n\n        items.append(\n            PsychometricItem(\n                item_id=item_id_str,\n                text=str(text),\n                trait=default_trait,\n                reverse_scored=False,\n                correct_answer=str(correct),\n            )\n        )\n\n    instrument_id = None\n    if isinstance(data, list) and data:\n        instrument_id = os.path.basename(yaml_path)\n\n    return PsychometricTest(\n        name=test_name,\n        items=items,\n        scale_type=\"binary\",\n        instrument_id=instrument_id,\n    )",
+      "after": "def _load_crt_test_from_yaml(\n    yaml_path: str,\n    test_name: str,\n    default_trait: str,\n    correct_answers: Optional[Dict[str, str]] = None,\n) -> PsychometricTest:\n    data = _safe_load_yaml(yaml_path)\n    if not data:\n        raise FileNotFoundError(\n            f\"CRT test definition YAML '{yaml_path}' is missing or empty.\"\n        )\n\n    if isinstance(data, dict):\n        items_src = data.get(\"items\", [])\n        instrument_id = str(data.get(\"id\", os.path.basename(yaml_path)))\n    else:\n        items_src = data\n        instrument_id = os.path.basename(yaml_path)\n\n    correct_answers = correct_answers or {}\n    items: List[PsychometricItem] = []\n\n    for row in items_src:\n        if \"id\" not in row or \"question\" not in row:\n            raise ValueError(\n                f\"Invalid CRT item in {yaml_path}: each item must have 'id' and 'question'.\"\n            )\n        item_id_str = str(row[\"id\"])\n        text = str(row[\"question\"])\n\n        correct = row.get(\"correct\") or row.get(\"answer\") or correct_answers.get(item_id_str)\n        # Allow missing correct_answer at load time; downstream scoring can skip until filled\n        items.append(\n            PsychometricItem(\n                item_id=item_id_str,\n                text=text,\n                trait=default_trait,\n                reverse_scored=False,\n                correct_answer=str(correct) if correct is not None else None,\n            )\n        )\n\n    return PsychometricTest(\n        name=test_name,\n        items=items,\n        scale_type=\"binary\",\n        instrument_id=instrument_id,\n    )",
+      "addresses_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "before": "    def _simulate_crt2(\n        self, persona: Persona\n    ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, float]]:\n        ...\n        for item in test.items:\n            delta = self.calibrator.params.crt2_item_deltas.get(item.item_id, 0.0)\n            logit_p = base_logit + delta\n            p_correct = self._logistic(logit_p)\n            is_correct = 1 if random.random() < p_correct else 0\n            answer = self._generate_crt_answer(item, bool(is_correct))\n            # Ensure internal consistency between answer and correctness flag\n            derived_is_correct = int(\n                bool(item.correct_answer)\n                and str(answer).strip() == str(item.correct_answer).strip()\n            )\n            # If for some reason they disagree, trust the equality-based result\n            is_correct = derived_is_correct\n            responses[item.item_id] = {\n                \"answer\": answer,\n                \"is_correct\": is_correct,\n            }\n            correct_flags.append(is_correct)",
+      "after": "    def _simulate_crt2(\n        self, persona: Persona\n    ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, float]]:\n        ...\n        for item in test.items:\n            delta = self.calibrator.params.crt2_item_deltas.get(item.item_id, 0.0)\n            logit_p = base_logit + delta\n            p_correct = self._logistic(logit_p)\n            is_correct = 1 if random.random() < p_correct else 0\n            answer = self._generate_crt_answer(item, bool(is_correct))\n            # Trust the simulated correctness flag; do not overwrite it based on string equality\n            responses[item.item_id] = {\n                \"answer\": answer,\n                \"is_correct\": is_correct,\n            }\n            correct_flags.append(is_correct)",
+      "addresses_recent_changes": true
+    }
+  ],
+  "change_analysis": {
+    "summary": "The recent refactor significantly reorganized the code into a more modular simulation pipeline, but it also diverged from the actual data/YAML schemas and introduced stricter validation, which together make the current iteration non-functional with the provided resources.",
+    "positive_impacts": [
+      "Clearer separation of concerns via SimulationConfig, DataBundle, Persona, SimulationState, Calibrator, Simulator, and Evaluator improves long-term maintainability.",
+      "Deterministic calibration of CRT2 logistic parameters and noise scales for BFI/NFC is a step towards a principled mapping from traits to responses.",
+      "TestAdministrator and ResponseGenerator abstractions prepare the system for future LLM-based psychometric item administration.",
+      "Writing task handling now uses MemoryAgent and PlanningAgent, cleanly encapsulating context construction for potential LLM calls."
+    ],
+    "negative_impacts": [
+      "Schema assumptions for personas and YAML instruments no longer match the actual files, causing critical runtime failures in loading and evaluation.",
+      "BFI and NFC item-trait mappings and reverse-keying are now incorrect relative to the actual BFI-10 and NFC-18 instruments, which would undermine trait_fidelity even after loaders are fixed.",
+      "CRT loaders enforce presence of correct_answer fields not present in YAML, and correctness logic overwrites the calibrated Bernoulli result with brittle string-equality checks."
+    ],
+    "suggestions": [
+      "In the next iteration, prioritize restoring compatibility with the existing synthetic_personas.csv and YAMLs before further architectural changes.",
+      "Introduce explicit, well-documented preprocessing for personas and instrument-specific parsers for each YAML to avoid over-generic, brittle loading logic.",
+      "Loosen validation around CRT correct_answer until the keys are properly added, and simplify correctness handling to rely on the simulated flag rather than string equality.",
+      "Add small unit tests for each loader (personas, BFI, NFC, CRT2, bCRT) that instantiate the simulator with the real files and verify that DataBundle is correctly populated."
+    ]
+  }
+}

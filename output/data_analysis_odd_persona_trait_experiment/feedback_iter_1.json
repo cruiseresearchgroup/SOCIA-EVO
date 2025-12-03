@@ -1,0 +1,178 @@
+{
+  "summary": "The refactored simulator is structurally much closer to the task specification (personas, prompt builder, YAML-driven tests, calibration, evaluation), but several critical mismatches with the actual YAML schemas and trait mappings will cause runtime failures and prevent meaningful evaluation. The next iteration should first fix the YAML loaders and test bank construction, ensure trait\u2194item mappings are hard\u2011coded where the YAML lacks metadata, and make CRT scoring and writing-task handling robust. Only after the pipeline runs end-to-end should you iterate on calibration, behavioural alignment, and more nuanced reliability checks.",
+  "critical_issues": [
+    {
+      "issue": "YAML Likert loader expects per-item `keyed` and `trait/domain` fields that do not exist in bfi10_items.yaml and nfc18_items.yaml, leading to ValueErrors and broken trait mappings.",
+      "impact": "The test bank cannot be built, so no BFI or NFC items are simulated; downstream, PersonaSimulator._simulate_item will either never be reached for these tests or will raise trait-mapping errors. Trait_fidelity and response_consistency metrics for BFI/NFC become impossible to compute.",
+      "solution": "Stop relying on YAML for keyed/trait info for BFI-10 and NFC-18. Instead, use the YAML only for text and test id, and hard-code item\u2192trait and item\u2192keying maps in code. Relax the validation that throws when `default_test_name.lower() in {\"bfi\",\"nfc\"}` and synthesize `trait` and `keyed` fields from those internal maps.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "CRT YAML loader requires `correct_answer` in the YAML, which is not present in crt2_items.yaml and bcrt_items.yaml.",
+      "impact": "build_test_bank() will raise ValueError for every CRT item, so CRT2 and bCRT tests are never available. This breaks CRT-related trait_fidelity and behavioural_alignment analyses and may cause the entire simulation to abort at startup.",
+      "solution": "Provide correct (and optional lure) answers via code-side lookup tables keyed by item_id (e.g., CRT2_CORRECT = {\"crt2_q1\": \"2\", ...}). In load_crt_test_from_yaml, look up these answers instead of requiring them in YAML; only override from YAML if present.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "writing_tasks.yaml is treated as a required, non-empty YAML list, but in this setup it is empty (safe_load returns None).",
+      "impact": "Because build_test_bank() both requires writing_tasks.yaml to exist and `_coerce_items_list` insists on finding 'items', test bank construction will fail immediately even when all other instruments are correct. That prevents any simulation from running.",
+      "solution": "Special-case writing_tasks.yaml: if yaml.safe_load returns None, treat it as an empty items list rather than an error. In build_test_bank, allow load_writing_tasks_from_yaml to return an empty list and simply skip adding writing items, perhaps with a warning.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "Downstream logic for Likert items assumes `item.trait` matches config.bfi_columns keys or 'nfc', but due to the current loader behaviour traits are often missing or arbitrary, causing ValueErrors in PersonaSimulator._simulate_item.",
+      "impact": "Even if the YAML loaders were relaxed enough to build a test bank, answering BFI and NFC items would frequently crash with 'Likert item ... missing trait mapping' or 'unknown trait', preventing any per-item / per-persona dataset from being produced.",
+      "solution": "After introducing explicit hard-coded trait/keying maps for BFI/NFC, ensure load_likert_test_from_yaml sets `item.trait` to e.g. 'extraversion', 'agreeableness', etc. for BFI and 'nfc' for NFC. Add a one-time validation pass over TestBank that asserts all likert items have trait in the allowed set and raise a clear diagnostic if not.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "The CRT scoring logic assumes TestItem.correct_answer is always present, but RealLLMClient._score_crt_from_text and PseudoLLM.answer_crt both rely on it; if any CRT item lacks correct_answer, scoring silently degrades or raises, which will happen with the current loader.",
+      "impact": "Either CRT items will never be used (due to loader error) or CRT correctness will be undefined, corrupting sim_crt2_score and CRT-related behavioural analyses.",
+      "solution": "Once correct answers are defined in code, guarantee that every CRT TestItem has correct_answer set. Add an assertion in build_test_bank or after loading CRT tests to ensure this invariant holds.",
+      "introduced_by_changes": true
+    },
+    {
+      "issue": "Evaluator and PersonaSimulator rely on canonical test_name values ('BFI', 'NFC') while YAML ids differ ('bfi_10', 'nfc_short_18'), and there is no explicit mapping layer.",
+      "impact": "While not immediately fatal (because build_test_bank currently sets test_name from `default_test_name`), this dual-naming is a source of subtle bugs and confusion. Future extensions or alternative YAMLs could easily desynchronize these names, breaking per-test logic, grouping, and Cronbach's alpha computations.",
+      "solution": "Define explicit canonical test ids in code (e.g., TEST_ID_BFI='BFI', TEST_ID_NFC='NFC') and always set TestItem.test_name to those. Store the raw YAML id in TestItem.metadata['instrument_id'] for reference. Refactor all conditionals to rely on canonical ids.",
+      "introduced_by_changes": true
+    }
+  ],
+  "model_improvements": [
+    {
+      "aspect": "Trait-to-item mapping and scoring realism for BFI-10 and NFC-18",
+      "current_approach": "Uses a generic YAML loader that expects each item to carry its own keyed direction and trait domain, and then feeds trait values directly into a linear-plus-noise Likert simulator.",
+      "suggested_approach": "Hard-code validated item\u2192domain and item\u2192reverse-key mappings for BFI-10 and NFC-18 (as used in the psychometric literature), then use these to set `item.trait` and `item.keyed`. Optionally introduce small domain-specific noise parameters or inter-item residual correlations later.",
+      "expected_benefit": "Ensures scale-level simulated scores more faithfully reflect the intended constructs, enabling meaningful trait_fidelity and response_consistency metrics. It also reduces the risk of silent mis-scoring when YAML schemas change."
+    },
+    {
+      "aspect": "CRT ability modelling",
+      "current_approach": "Maps CRT2_Total_adj to 0\u20134 levels via quintiles and then uses a single p_correct function with a slip parameter for all CRT items.",
+      "suggested_approach": "Retain the simple mapping, but calibrate p_correct per test (CRT2 vs bCRT) or per-item using small per-item difficulty offsets. Optionally, tie CRT_Combined rather than CRT2_Total_adj to level mapping if that better approximates ground truth.",
+      "expected_benefit": "Improves the match between obtained CRT scores and target CRT levels, especially when items differ in difficulty, thereby improving trait_fidelity on the CRT dimension and making behavioural_alignment analyses more interpretable."
+    },
+    {
+      "aspect": "Writing-task behavioural alignment",
+      "current_approach": "Generates writing via a simple templated pseudo-LLM that injects a few trait-linked words and then computes proxy LIWC-style metrics from token counts.",
+      "suggested_approach": "Once the structural issues are fixed, consider adding slightly more differentiated behavioural rules: for example, let high NFC personas produce longer, more analytic text and low NFC personas produce shorter, more affect-focused text; vary the probability distributions of analytic vs affect vs insight vocabulary by trait. Keep it deterministic for reproducibility.",
+      "expected_benefit": "Increases the chances that LIWC-style features show systematic, theoretically consistent relationships with NFC and CRT traits, improving the behavioural_alignment metrics and making regressions more informative."
+    },
+    {
+      "aspect": "Reliability estimation strategy",
+      "current_approach": "Computes Cronbach's alpha after dropping any persona with any missing item response (dropna(axis=0, how='any')).",
+      "suggested_approach": "Implement a simple missing-data handling rule: e.g., drop items with >30% missingness, then impute remaining missing responses with item means before computing alpha. Alternatively, at least report the N used for alpha to contextualize the reliability estimate.",
+      "expected_benefit": "Prevents alpha from being based on a tiny, unrepresentative subset of personas and yields more stable, interpretable internal consistency estimates, especially under real-LLM noise."
+    }
+  ],
+  "code_improvements": [
+    {
+      "file": "simulation.py",
+      "modification": "Align load_likert_test_from_yaml with bfi10_items.yaml and nfc18_items.yaml by hard-coding item\u2192trait and item\u2192keying maps and not requiring these fields in YAML.",
+      "reason": "Prevents ValueErrors when loading BFI/NFC tests and ensures that each item has a valid trait and keyed direction required by PersonaSimulator._simulate_item.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Refactor load_crt_test_from_yaml to source correct_answer and lure_answers from code-side dicts keyed by item_id instead of requiring them in YAML.",
+      "reason": "Enables CRT2 and bCRT tests to be loaded from the schema-compatible YAML files and ensures correct scoring behaviour.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Make writing_tasks.yaml loading tolerant of empty files: treat None from safe_load as an empty list and skip adding writing TestItems if none are defined.",
+      "reason": "Prevents build_test_bank from failing when writing_tasks.yaml is structurally present but contains no tasks, which is currently the case.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Introduce canonical test-name constants (e.g., TEST_BFI='BFI', TEST_NFC='NFC', TEST_CRT2='CRT2', TEST_BCRT='bCRT', TEST_WRITING='Writing') and use them consistently in loaders, simulator, and evaluator.",
+      "reason": "Avoids subtle bugs and confusion between YAML instrument ids and internal logical ids, making per-test logic more robust and readable.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Add a post-construction TestBank validation function that asserts all likert items have trait in the allowed set and all CRT items have correct_answer set; fail fast with descriptive errors if not.",
+      "reason": "Catches configuration errors early and provides clear diagnostics when new YAMLs or future changes introduce inconsistencies.",
+      "related_to_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "modification": "Improve RealLLMClient._parse_answers error handling so that parsing failures yield empty or clearly flagged responses instead of the entire raw payload string.",
+      "reason": "Reduces the risk that corrupted or unparsable OpenAI output is misinterpreted as a valid Likert or CRT answer, which would bias simulated scores silently.",
+      "related_to_recent_changes": false
+    }
+  ],
+  "data_alignment_suggestions": [
+    {
+      "metric": "Trait fidelity for BFI and NFC",
+      "current_gap": "Due to missing or incorrect trait mappings and keying information, simulated scale scores cannot yet be meaningfully compared to target BFI_* and NFC_Total scores.",
+      "suggestion": "After fixing the item-level mappings, run a small diagnostic: compute item-level means by trait tercile (low/medium/high) and confirm monotonic trends; then tweak likert_noise and calibration grid ranges to maximize average Pearson correlation between target and simulated domain scores."
+    },
+    {
+      "metric": "CRT2 and bCRT score fidelity",
+      "current_gap": "CRT scores are currently not computed at all because CRT tests cannot be loaded; once loaded, a single global p_correct function may not capture item difficulty.",
+      "suggestion": "Define correct answers for each CRT item and calibrate crt_slip (and optionally per-item difficulty offsets) to match the distribution of CRT2_Total_adj and CRT_Combined in the synthetic_personas.csv. Evaluate MAE and rank correlations before and after tuning."
+    },
+    {
+      "metric": "Behavioural alignment (trait\u2192writing features)",
+      "current_gap": "Writing tasks are either missing (empty YAML) or generated by a simple heuristic; LIWC proxy features may not yet correlate strongly with NFC/CRT as theory predicts.",
+      "suggestion": "Once a minimal set of 1\u20132 writing tasks is defined, systematically vary the probabilities of analytic vs affect vs insight phrases as a function of NFC and CRT levels, then check correlations between NFC_Total and analytic/insight metrics and between CRT2 and insight/length."
+    }
+  ],
+  "prioritized_actions": [
+    "Fix YAML test loaders so that bfi10_items.yaml and nfc18_items.yaml load successfully with correct trait and keying assignments, and crt2_items.yaml/bcrt_items.yaml load with correct answers from code-side maps.",
+    "Make writing_tasks.yaml optional and robust to emptiness, so the pipeline runs even without writing tasks.",
+    "Introduce canonical test-name constants and a TestBank validation step to enforce invariants (all likert items have proper traits, all CRT items have answers).",
+    "Re-run and verify the full pipeline (build_network_and_agents \u2192 calibration grid search \u2192 simulator.rollout \u2192 evaluator.compute_metrics \u2192 save_results) on the real synthetic_personas.csv.",
+    "After structural correctness is confirmed, refine calibration ranges and writing-generation rules to improve trait_fidelity and behavioural_alignment.",
+    "Consider more robust missing-data handling for reliability estimates and, later, add explicit test\u2013retest or shuffle-based consistency experiments."
+  ],
+  "additional_comments": "The new architecture\u2014SimulationConfig, Persona, PersonaPromptBuilder, TestBank, PersonaSimulator, GridSearchCalibrator, and Evaluator\u2014is a major improvement over the previous iteration. It closely mirrors the task specification and will be a solid base once the YAML-schema mismatches are resolved. The main blocking issues are all at the interface between external schema (YAML) and internal models (TestItem, PersonaSimulator). Addressing those will likely turn most remaining issues into incremental improvements rather than blockers.",
+  "code_snippets": [
+    {
+      "file": "simulation.py",
+      "before": "def load_likert_test_from_yaml(\n    filename: str,\n    default_test_name: str,\n    default_trait: Optional[str] = None,\n) -> List[TestItem]:\n    \"\"\"\n    Load a Likert-scale questionnaire from a YAML file into TestItem\n    objects. Validates keyed directions and, for BFI, enforces that\n    items map to known Big Five domains.\n    \"\"\"\n    yaml_data = _load_yaml_items_file(filename)\n    items_raw = _coerce_items_list(yaml_data, filename)\n    items: List[TestItem] = []\n\n    for entry in items_raw:\n        item_id = str(\n            entry.get(\"id\")\n            or entry.get(\"item_id\")\n            or entry.get(\"name\")\n            or entry.get(\"code\")\n        )\n        ...\n        if default_test_name.lower() == \"bfi\":\n            valid_domains = {\n                \"extraversion\",\n                \"agreeableness\",\n                \"conscientiousness\",\n                \"neuroticism\",\n                \"openness\",\n            }\n            if trait is None:\n                raise ValueError(\n                    f\"BFI item '{item_id}' in '{filename}' is missing a \"\n                    \"'trait'/'domain' field.\"\n                )\n            trait_norm = str(trait).strip().lower()\n            if trait_norm not in valid_domains:\n                raise ValueError(\n                    f\"BFI item '{item_id}' in '{filename}' has trait/domain \"\n                    f\"'{trait}', expected one of {sorted(valid_domains)}.\"\n                )\n            trait = trait_norm\n            scale_name = trait_norm\n\n        # For NFC-18 we force a single 'nfc' trait label\n        if default_test_name.lower() == \"nfc\":\n            trait = \"nfc\"\n            scale_name = \"nfc\"\n        ...",
+      "after": "TEST_BFI = \"BFI\"\nTEST_NFC = \"NFC\"\n\nBFI10_ITEM_TRAITS = {\n    \"1\": (\"extraversion\", True),   # reserved (E, reverse)\n    \"2\": (\"agreeableness\", False), # generally trusting (A)\n    \"3\": (\"conscientiousness\", True),\n    \"4\": (\"neuroticism\", True),    # relaxed, handles stress well (N, reverse)\n    \"5\": (\"openness\", True),       # few artistic interests (O, reverse)\n    \"6\": (\"extraversion\", False),\n    \"7\": (\"agreeableness\", True),  # finds fault with others (A, reverse)\n    \"8\": (\"conscientiousness\", False),\n    \"9\": (\"neuroticism\", False),\n    \"10\": (\"openness\", False),\n}\n\nNFC18_REVERSE_IDS = {3, 4, 5, 7, 9, 12, 16, 17}\n\ndef load_likert_test_from_yaml(\n    filename: str,\n    default_test_name: str,\n    default_trait: Optional[str] = None,\n) -> List[TestItem]:\n    yaml_data = _load_yaml_items_file(filename)\n    items_raw = _coerce_items_list(yaml_data, filename)\n    items: List[TestItem] = []\n\n    # Keep original YAML id for reference\n    instrument_id = None\n    if isinstance(yaml_data, dict) and \"id\" in yaml_data:\n        instrument_id = str(yaml_data[\"id\"])\n\n    for entry in items_raw:\n        item_id_raw = entry.get(\"id\") or entry.get(\"item_id\") or entry.get(\"name\") or entry.get(\"code\")\n        item_id = str(item_id_raw)\n        text = entry.get(\"text\") or entry.get(\"prompt\") or entry.get(\"question\")\n        if not text:\n            raise ValueError(f\"Missing text for item '{item_id}' in '{filename}'.\")\n\n        # Canonical test name\n        test_name = default_test_name\n\n        # Derive trait and keyed based on test and item id\n        trait: Optional[str] = None\n        keyed: int = 1\n        if test_name == TEST_BFI:\n            # BFI-10: use hard-coded mapping\n            t, is_reverse = BFI10_ITEM_TRAITS.get(str(item_id_raw), (None, False))\n            if t is None:\n                raise ValueError(f\"No BFI trait mapping defined for item '{item_id}' in {filename}.\")\n            trait = t\n            keyed = -1 if is_reverse else 1\n            scale_name = trait\n        elif test_name == TEST_NFC:\n            trait = \"nfc\"\n            keyed = -1 if int(item_id_raw) in NFC18_REVERSE_IDS else 1\n            scale_name = \"nfc\"\n        else:\n            # Generic fallback: use default_trait and assume positively keyed\n            trait = default_trait\n            keyed = 1\n            scale_name = default_trait\n\n        metadata = {\"instrument_id\": instrument_id}\n\n        items.append(\n            TestItem(\n                item_id=item_id,\n                test_name=test_name,\n                scale_name=scale_name,\n                item_text=str(text),\n                trait=trait,\n                keyed=keyed,\n                item_type=\"likert\",\n                metadata=metadata,\n            )\n        )\n\n    return items\n",
+      "addresses_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "before": "def load_crt_test_from_yaml(\n    filename: str,\n    default_test_name: str,\n    default_trait: Optional[str] = None,\n) -> List[TestItem]:\n    \"\"\"\n    Load CRT-style items (numeric response, correct answer) from YAML\n    into TestItem objects.\n    \"\"\"\n    yaml_data = _load_yaml_items_file(filename)\n    items_raw = _coerce_items_list(yaml_data, filename)\n    items: List[TestItem] = []\n\n    for entry in items_raw:\n        item_id = str(\n            entry.get(\"id\")\n            or entry.get(\"item_id\")\n            or entry.get(\"name\")\n            or entry.get(\"code\")\n        )\n        ...\n        correct_answer = (\n            entry.get(\"correct_answer\")\n            or entry.get(\"answer\")\n            or entry.get(\"solution\")\n        )\n        if correct_answer is None or str(correct_answer).strip() == \"\":\n            raise ValueError(\n                f\"Missing 'correct_answer'/'answer' for CRT item '{item_id}' \"\n                f\"in '{filename}'.\"\n            )\n        ...",
+      "after": "CRT2_CORRECT = {\n    \"crt2_q1\": \"2\",\n    \"crt2_q2\": \"8\",\n    \"crt2_q3\": \"Emily\",\n    \"crt2_q4\": \"0\",\n}\n\nBCRT_CORRECT = {\n    \"bcrt_q1\": \"400\",\n    \"bcrt_q2\": \"8\",\n    \"bcrt_q3\": \"0\",\n    \"bcrt_q4\": \"yes\",\n}\n\nCRT_LURES = {\n    \"crt2_q1\": [\"1\"],\n    \"crt2_q2\": [\"7\"],\n    \"crt2_q3\": [\"June\"],\n    \"crt2_q4\": [\"27\"],\n    \"bcrt_q1\": [\"200\"],\n    \"bcrt_q2\": [\"10\"],\n    \"bcrt_q3\": [\"3\"],\n    \"bcrt_q4\": [\"no\"],\n}\n\ndef load_crt_test_from_yaml(\n    filename: str,\n    default_test_name: str,\n    default_trait: Optional[str] = None,\n) -> List[TestItem]:\n    yaml_data = _load_yaml_items_file(filename)\n    items_raw = _coerce_items_list(yaml_data, filename)\n    items: List[TestItem] = []\n\n    for entry in items_raw:\n        item_id_raw = entry.get(\"id\") or entry.get(\"item_id\") or entry.get(\"name\") or entry.get(\"code\")\n        item_id = str(item_id_raw)\n        text = entry.get(\"text\") or entry.get(\"prompt\") or entry.get(\"question\")\n        if not text:\n            raise ValueError(f\"Missing text for CRT item '{item_id}' in '{filename}'.\")\n\n        test_name = default_test_name\n        scale_name = default_trait\n        trait = default_trait\n\n        # Lookup correct and lure answers from code-side maps\n        if test_name == \"CRT2\":\n            correct_answer = CRT2_CORRECT.get(item_id)\n        elif test_name == \"bCRT\":\n            correct_answer = BCRT_CORRECT.get(item_id)\n        else:\n            correct_answer = None\n\n        if correct_answer is None:\n            raise ValueError(f\"No correct answer defined for CRT item '{item_id}' (test={test_name}).\")\n\n        lure_answers = CRT_LURES.get(item_id, None)\n\n        items.append(\n            TestItem(\n                item_id=item_id,\n                test_name=test_name,\n                scale_name=scale_name,\n                item_text=str(text),\n                trait=trait,\n                keyed=0,\n                item_type=\"crt\",\n                correct_answer=str(correct_answer),\n                lure_answers=[str(x) for x in (lure_answers or [])] or None,\n                metadata={\"filename\": filename},\n            )\n        )\n\n    return items\n",
+      "addresses_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "before": "def _load_yaml_items_file(rel_filename: str) -> Any:\n    \"\"\"\n    Load a YAML file from DATA_DIR and return its raw contents.\n    \"\"\"\n    path = os.path.join(DATA_DIR, rel_filename)\n    if not os.path.exists(path):\n        raise FileNotFoundError(\n            f\"Required YAML file '{rel_filename}' not found in DATA_DIR '{DATA_DIR}'.\"\n        )\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        data = yaml.safe_load(f)\n    return data\n\n\ndef _coerce_items_list(yaml_data: Any, filename: str) -> List[Dict[str, Any]]:\n    \"\"\"\n    Coerce YAML contents into a list of item dictionaries.\n    \"\"\"\n    if isinstance(yaml_data, dict):\n        if \"items\" in yaml_data and isinstance(yaml_data[\"items\"], list):\n            return yaml_data[\"items\"]\n        ...\n    if isinstance(yaml_data, list):\n        return yaml_data\n    raise ValueError(\n        f\"YAML file '{filename}' must be a list or contain an 'items' list.\"\n    )",
+      "after": "def _load_yaml_items_file(rel_filename: str) -> Any:\n    \"\"\"Load a YAML file from DATA_DIR and return its raw contents.\n\n    For an empty writing_tasks.yaml, return an empty list instead of None\n    so the rest of the pipeline can run without writing tasks.\n    \"\"\"\n    path = os.path.join(DATA_DIR, rel_filename)\n    if not os.path.exists(path):\n        raise FileNotFoundError(\n            f\"Required YAML file '{rel_filename}' not found in DATA_DIR '{DATA_DIR}'.\"\n        )\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        data = yaml.safe_load(f)\n    if data is None and rel_filename == \"writing_tasks.yaml\":\n        return []\n    return data\n\n\ndef _coerce_items_list(yaml_data: Any, filename: str) -> List[Dict[str, Any]]:\n    \"\"\"Coerce YAML contents into a list of item dictionaries.\"\"\"\n    if yaml_data is None:\n        if filename == \"writing_tasks.yaml\":\n            return []\n        raise ValueError(\n            f\"YAML file '{filename}' is empty; expected a list or an 'items' section.\"\n        )\n    if isinstance(yaml_data, dict):\n        if \"items\" in yaml_data and isinstance(yaml_data[\"items\"], list):\n            return yaml_data[\"items\"]\n        if \"questions\" in yaml_data and isinstance(yaml_data[\"questions\"], list):\n            return yaml_data[\"questions\"]\n        if \"tasks\" in yaml_data and isinstance(yaml_data[\"tasks\"], list):\n            return yaml_data[\"tasks\"]\n        raise ValueError(\n            f\"YAML file '{filename}' must contain an 'items', 'questions', or 'tasks' list.\"\n        )\n    if isinstance(yaml_data, list):\n        return yaml_data\n    raise ValueError(\n        f\"YAML file '{filename}' must be a list or contain an 'items' list.\"\n    )",
+      "addresses_recent_changes": true
+    },
+    {
+      "file": "simulation.py",
+      "before": "def build_test_bank() -> TestBank:\n    \"\"\"\n    Construct the psychometric test bank and writing tasks from YAML\n    specifications in DATA_DIR.\n    \"\"\"\n    required_yaml_files = [\n        \"bfi10_items.yaml\",\n        \"nfc18_items.yaml\",\n        \"crt2_items.yaml\",\n        \"bcrt_items.yaml\",\n        \"writing_tasks.yaml\",\n    ]\n    missing_files = [\n        fname\n        for fname in required_yaml_files\n        if not os.path.exists(os.path.join(DATA_DIR, fname))\n    ]\n    if missing_files:\n        raise FileNotFoundError(\n            \"The following required YAML files are missing in \"\n            f\"DATA_DIR '{DATA_DIR}': {missing_files}. \"\n            \"Please ensure all psychometric and writing task specifications \"\n            \"are present.\"\n        )\n\n    items: List[TestItem] = []\n    # BFI-10 from YAML\n    items.extend(load_likert_test_from_yaml(\"bfi10_items.yaml\", default_test_name=\"BFI\"))\n    # NFC-18 from YAML\n    items.extend(\n        load_likert_test_from_yaml(\n            \"nfc18_items.yaml\", default_test_name=\"NFC\", default_trait=\"nfc\"\n        )\n    )\n    # CRT2 items\n    items.extend(\n        load_crt_test_from_yaml(\n            \"crt2_items.yaml\", default_test_name=\"CRT2\", default_trait=\"crt2\"\n        )\n    )\n    # bCRT items\n    items.extend(\n        load_crt_test_from_yaml(\n            \"bcrt_items.yaml\", default_test_name=\"bCRT\", default_trait=\"crt2\"\n        )\n    )\n    # Writing tasks\n    items.extend(load_writing_tasks_from_yaml(\"writing_tasks.yaml\", \"Writing\"))\n\n    return TestBank(items=items)\n",
+      "after": "def build_test_bank() -> TestBank:\n    \"\"\"Construct the psychometric test bank and writing tasks from YAML specs.\"\"\"\n    required_yaml_files = [\n        \"bfi10_items.yaml\",\n        \"nfc18_items.yaml\",\n        \"crt2_items.yaml\",\n        \"bcrt_items.yaml\",\n        \"writing_tasks.yaml\",\n    ]\n    missing_files = [\n        fname\n        for fname in required_yaml_files\n        if not os.path.exists(os.path.join(DATA_DIR, fname))\n    ]\n    if missing_files:\n        raise FileNotFoundError(\n            \"The following required YAML files are missing in \"\n            f\"DATA_DIR '{DATA_DIR}': {missing_files}. \"\n            \"Please ensure all psychometric and writing task specifications are present.\"\n        )\n\n    items: List[TestItem] = []\n    # BFI-10 from YAML, canonical test id = TEST_BFI\n    items.extend(load_likert_test_from_yaml(\"bfi10_items.yaml\", default_test_name=TEST_BFI))\n\n    # NFC-18 from YAML, canonical test id = TEST_NFC\n    items.extend(load_likert_test_from_yaml(\"nfc18_items.yaml\", default_test_name=TEST_NFC, default_trait=\"nfc\"))\n\n    # CRT2 items\n    items.extend(load_crt_test_from_yaml(\"crt2_items.yaml\", default_test_name=\"CRT2\", default_trait=\"crt2\"))\n\n    # bCRT items\n    items.extend(load_crt_test_from_yaml(\"bcrt_items.yaml\", default_test_name=\"bCRT\", default_trait=\"crt2\"))\n\n    # Writing tasks (may be empty)\n    writing_items = load_writing_tasks_from_yaml(\"writing_tasks.yaml\", \"Writing\")\n    if not writing_items:\n        warnings.warn(\"No writing tasks found in writing_tasks.yaml; proceeding without writing tasks.\")\n    items.extend(writing_items)\n\n    # Optional: validate invariants (all likert have trait, all CRT have correct_answer)\n    _validate_test_bank(items)\n\n    return TestBank(items=items)\n\n\ndef _validate_test_bank(items: List[TestItem]) -> None:\n    \"\"\"Sanity-check TestItem configurations and fail fast on inconsistencies.\"\"\"\n    for it in items:\n        if it.item_type == \"likert\" and it.trait is None:\n            raise ValueError(f\"Likert item '{it.item_id}' has no trait assigned.\")\n        if it.item_type == \"crt\" and not it.correct_answer:\n            raise ValueError(f\"CRT item '{it.item_id}' has no correct_answer set.\")\n",
+      "addresses_recent_changes": true
+    }
+  ],
+  "change_analysis": {
+    "summary": "The recent refactor substantially improved overall structure and introduced clear separation of concerns (config, prompt building, test bank, simulation, calibration, evaluation). However, it also tightened assumptions about YAML content and trait metadata that do not hold for the provided files, causing critical loader failures and trait-mapping issues. The main negative effects are at the integration boundary with YAML and in stricter validation logic.",
+    "positive_impacts": [
+      "Introduced a well-typed SimulationConfig, Persona, TestItem, TestBank, and SimulationResult that match the task specification.",
+      "Implemented PersonaPromptBuilder with 9-level BFI and NFC qualifiers and CRT thinking-style prompts, aligning closely with the described persona specification.",
+      "Added a GridSearchCalibrator and an Evaluator implementing trait_fidelity, behavioural_alignment, and response_consistency metrics according to the blueprint.",
+      "Switched to a more modular main orchestration: load_data \u2192 build_network_and_agents \u2192 holdout_split \u2192 calibration \u2192 rollout \u2192 evaluation \u2192 save_results."
+    ],
+    "negative_impacts": [
+      "YAML loaders now enforce per-item metadata that the actual YAML files do not possess, breaking test bank construction.",
+      "CRT items cannot be loaded due to strict requirements for correct_answer fields in YAML, halting the pipeline.",
+      "writing_tasks.yaml being empty now causes immediate failure instead of being treated as 'no writing tasks' condition.",
+      "Stricter validation in load_likert_test_from_yaml and PersonaSimulator._simulate_item exposes trait-mapping gaps that were previously hidden by synthetic data generation."
+    ],
+    "suggestions": [
+      "Relax YAML-related assumptions and move psychometric mapping knowledge (traits, keyed directions, correct answers) into code-side lookup tables aligned with the documented instruments.",
+      "Introduce a validation layer for TestBank after construction, and keep YAML semantics minimal: text, ids, and instrument ids.",
+      "Treat writing_tasks.yaml as optional/empty where appropriate, with clear warnings but no hard failure.",
+      "Once structural integration issues are resolved, incrementally re-enable and refine stricter validations to catch genuine configuration errors rather than schema mismatches."
+    ]
+  }
+}

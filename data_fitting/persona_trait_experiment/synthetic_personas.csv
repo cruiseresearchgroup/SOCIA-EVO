@@ -1,0 +1,471 @@
+Country,Employment Status,Occupation_cat,sex,Highest education level completed,Ethnicity Simplified,Age,CRT2_Total_adj,BCRT_Total,CRT_Combined,NFC_Total,BFI_Extraversion,BFI_Agreeableness,BFI_Conscientiousness,BFI_Neuroticism,BFI_Openness,BFI_Attn_Pass
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Asian,31,2.0,0.0,2.0,3.0,2.0,1.5,4.0,1.0,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,69,2.46619580726608,0.0,6.0,3.6666666666666665,5.0,5.0,5.0,1.5,3.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,44,2.46619580726608,2.0,6.0,4.611111111111111,1.0,4.0,5.0,3.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,44,2.46619580726608,1.0,3.0,3.7222222222222223,2.0,3.5,4.0,2.0,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,46,1.8665489518165201,0.0,2.0,3.7222222222222223,3.5,2.0,4.5,1.0,3.0,1
+United States,Retired,Other,Female,Undergraduate degree (BA/BSc/other),White,30,2.86654895181652,2.0,7.0,4.444444444444445,3.0,3.5,5.0,3.0,5.0,1
+United Kingdom,Unemployed and looking for work,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,48,1.4661958072660801,2.0,3.0,4.388888888888889,2.0,4.0,5.0,3.0,3.0,1
+United States,Working full-time,Sales and Customer Service Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,43,2.7330979036330403,1.0,5.0,4.5,2.5,5.0,5.0,3.0,4.0,1
+United Kingdom,Retired,Professional Occupations,Female,Technical/community college,White,54,2.46619580726608,2.0,6.0,3.111111111111111,3.5,1.5,5.0,1.0,4.0,1
+United States,Unemployed and looking for work,Other,Male,Undergraduate degree (BA/BSc/other),White,49,2.59964685544956,2.0,7.0,4.388888888888889,3.5,1.5,4.0,5.0,2.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,35,3.7330979036330403,1.0,5.0,2.8333333333333335,1.0,3.5,3.0,1.5,3.5,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Male,High school diploma/A-levels,White,38,1.4661958072660801,1.0,3.0,2.9444444444444446,3.5,3.5,5.0,3.0,3.0,1
+United Kingdom,Retired,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,46,3.59964685544956,4.0,5.0,3.9444444444444446,2.0,3.0,3.0,5.0,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),Asian,28,2.59964685544956,1.0,3.0,3.2777777777777777,3.0,4.0,3.0,2.5,4.5,1
+United Kingdom,Working part-time,"Process, Plant and Machine Operatives",Female,Doctorate degree (PhD/other),White,53,1.8665489518165201,4.0,6.0,3.2777777777777777,1.0,1.5,5.0,4.0,3.5,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,30,3.0,1.0,3.0,4.333333333333333,1.5,3.5,5.0,3.0,5.0,1
+United States,Unemployed and looking for work,Professional Occupations,Female,High school diploma/A-levels,White,43,2.86654895181652,2.0,5.0,3.1666666666666665,2.0,3.0,4.5,1.5,3.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,Undergraduate degree (BA/BSc/other),White,41,2.7330979036330403,1.0,6.0,4.388888888888889,2.0,3.0,3.0,3.5,5.0,1
+United Kingdom,Retired,Other,Male,Undergraduate degree (BA/BSc/other),Asian,43,0.46619580726608023,0.0,4.0,4.055555555555555,4.0,5.0,4.5,2.5,5.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,42,2.46619580726608,1.0,3.0,3.2222222222222223,3.0,3.5,5.0,2.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,27,1.4661958072660801,2.0,4.0,3.3333333333333335,3.0,2.5,4.0,2.0,4.5,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,28,3.59964685544956,1.0,5.0,2.388888888888889,2.0,2.0,5.0,5.0,3.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Technical/community college,White,63,1.5996468554495602,0.0,4.0,3.5555555555555554,4.5,4.0,2.5,5.0,3.5,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,44,1.0,0.0,4.0,3.7777777777777777,5.0,4.0,4.5,2.5,2.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,41,2.46619580726608,1.0,6.0,3.2777777777777777,1.5,3.5,5.0,3.0,4.0,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,Secondary education (e.g. GED/GCSE),White,39,1.4661958072660801,1.0,3.0,2.111111111111111,2.0,2.0,3.0,2.5,3.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),Asian,64,3.46619580726608,1.0,4.0,3.0,5.0,5.0,3.0,2.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,37,3.0,1.0,7.0,3.6666666666666665,2.0,1.0,4.5,1.5,4.5,1
+United States,Unemployed and looking for work,Professional Occupations,Female,Secondary education (e.g. GED/GCSE),White,53,0.5996468554495602,0.0,3.0,3.8333333333333335,4.5,3.0,3.0,1.0,4.0,1
+United Kingdom,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),Black,37,1.5996468554495602,2.0,4.0,3.111111111111111,2.0,4.0,4.0,3.5,3.0,1
+United States,Unemployed and looking for work,Sales and Customer Service Occupations,Male,Secondary education (e.g. GED/GCSE),White,33,0.86654895181652,2.0,3.0,2.611111111111111,1.0,3.0,5.0,3.0,5.0,1
+United Kingdom,Other,Professional Occupations,Female,Secondary education (e.g. GED/GCSE),White,63,2.59964685544956,2.0,2.0,3.8333333333333335,1.0,4.5,5.0,2.0,5.0,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),Asian,41,1.73309790363304,2.0,4.0,3.5555555555555554,2.5,3.5,3.0,1.0,3.5,1
+United States,Other,Sales and Customer Service Occupations,Male,Undergraduate degree (BA/BSc/other),White,27,1.4661958072660801,0.0,4.0,3.9444444444444446,2.0,3.5,4.5,3.0,4.5,1
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Male,High school diploma/A-levels,White,60,2.86654895181652,4.0,4.0,3.8333333333333335,1.0,5.0,5.0,2.0,3.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,40,0.5996468554495602,1.0,2.0,2.4444444444444446,2.0,3.5,4.0,4.0,3.5,0
+United Kingdom,Retired,Other,Female,Undergraduate degree (BA/BSc/other),White,41,1.4661958072660801,1.0,1.0,2.5555555555555554,1.5,4.0,3.0,1.5,3.0,1
+United Kingdom,Other,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,33,0.5996468554495602,0.0,2.0,3.4444444444444446,4.0,2.0,3.0,4.5,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,54,2.0,2.0,7.0,3.888888888888889,3.5,5.0,5.0,4.5,3.5,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,35,1.8665489518165201,0.0,2.0,3.111111111111111,1.0,3.0,2.5,4.5,4.5,1
+United Kingdom,Working full-time,"Process, Plant and Machine Operatives",Male,High school diploma/A-levels,White,54,3.59964685544956,2.0,6.0,2.0555555555555554,1.0,3.5,4.5,2.5,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Doctorate degree (PhD/other),White,35,3.46619580726608,1.0,4.0,2.5555555555555554,4.5,2.5,4.5,1.0,1.5,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),Mixed,37,3.0,2.0,7.0,3.388888888888889,2.5,3.5,5.0,2.0,5.0,0
+United Kingdom,Retired,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,21,2.0,0.0,1.0,4.5,4.0,4.5,4.5,4.0,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,49,3.59964685544956,2.0,4.0,2.8333333333333335,5.0,3.0,3.0,2.5,2.0,0
+United States,Working full-time,Sales and Customer Service Occupations,Male,Technical/community college,White,55,2.7330979036330403,2.0,8.0,4.0,4.0,2.5,4.0,1.5,4.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,37,2.46619580726608,2.0,5.0,3.888888888888889,2.5,3.0,3.0,1.5,4.5,1
+United States,Working full-time,Skilled Trades Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,40,2.46619580726608,0.0,3.0,3.6666666666666665,1.5,4.0,3.0,4.0,4.0,1
+United States,Working full-time,Sales and Customer Service Occupations,Male,Undergraduate degree (BA/BSc/other),White,58,3.59964685544956,1.0,6.0,3.3333333333333335,3.0,3.5,3.0,2.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,61,-0.2669020963669599,3.0,2.0,3.7777777777777777,4.5,2.0,4.5,4.5,4.0,1
+United Kingdom,Working full-time,Elementary Occupations,Male,Undergraduate degree (BA/BSc/other),White,44,2.59964685544956,2.0,5.0,2.888888888888889,2.0,4.5,5.0,2.0,3.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Technical/community college,White,60,2.59964685544956,1.0,6.0,3.888888888888889,4.0,4.0,4.0,2.0,3.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,37,3.59964685544956,1.0,4.0,2.7222222222222223,2.5,2.5,3.0,2.5,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,65,1.4661958072660801,1.0,6.0,3.0,2.0,3.0,5.0,4.0,4.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,High school diploma/A-levels,Black,58,2.59964685544956,0.0,2.0,4.388888888888889,4.5,3.5,5.0,4.0,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,52,2.86654895181652,0.0,4.0,4.0,4.5,3.5,3.5,2.0,3.5,1
+United Kingdom,Other,Associate Professional and Technical Occupations,Male,Technical/community college,White,27,2.7330979036330403,0.0,1.0,2.7777777777777777,3.5,2.5,4.0,3.0,2.0,1
+United States,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,42,2.46619580726608,0.0,3.0,4.0,2.5,2.5,4.0,3.0,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),Mixed,63,2.46619580726608,4.0,2.0,4.0,2.5,1.5,3.0,3.0,4.0,1
+United Kingdom,Retired,Professional Occupations,Female,High school diploma/A-levels,White,47,1.73309790363304,2.0,4.0,2.3333333333333335,2.5,4.5,3.5,1.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,37,2.7330979036330403,0.0,2.0,3.7222222222222223,3.0,3.5,3.5,4.0,3.5,1
+United States,Retired,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),Asian,43,2.46619580726608,1.0,5.0,2.0555555555555554,3.5,3.5,3.0,3.0,3.0,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,36,1.4661958072660801,0.0,5.0,3.5,2.0,4.0,4.5,3.0,5.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,High school diploma/A-levels,White,26,2.46619580726608,3.0,5.0,3.4444444444444446,1.0,4.5,3.5,3.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,33,2.59964685544956,1.0,4.0,3.5,4.0,3.0,5.0,3.0,1.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,25,2.46619580726608,1.0,4.0,4.777777777777778,2.0,4.0,5.0,4.0,4.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),Asian,42,2.86654895181652,0.0,4.0,2.8333333333333335,3.0,5.0,3.0,2.5,4.0,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Male,Graduate degree (MA/MSc/MPhil/other),White,47,2.86654895181652,2.0,4.0,4.222222222222222,5.0,4.0,5.0,3.0,3.0,1
+United Kingdom,A homemaker or stay-at-home parent,Other,Male,Graduate degree (MA/MSc/MPhil/other),White,63,3.59964685544956,1.0,8.0,4.0,3.0,2.0,3.5,2.0,3.0,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,56,0.46619580726608023,1.0,3.0,3.5,5.0,3.0,5.0,2.5,5.0,0
+United Kingdom,Working full-time,Professional Occupations,Male,High school diploma/A-levels,White,47,3.7330979036330403,2.0,4.0,1.9444444444444444,1.5,2.0,2.0,4.5,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Technical/community college,White,30,0.5996468554495602,2.0,4.0,2.388888888888889,4.5,3.0,3.5,3.5,3.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,High school diploma/A-levels,White,27,1.4661958072660801,4.0,4.0,3.6666666666666665,2.0,4.5,4.0,1.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,62,2.46619580726608,0.0,4.0,3.8333333333333335,3.5,4.5,3.5,5.0,4.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Technical/community college,White,24,0.46619580726608023,0.0,0.0,2.888888888888889,3.0,4.0,4.5,5.0,3.0,1
+United States,Working full-time,Professional Occupations,Male,High school diploma/A-levels,White,61,1.73309790363304,0.0,2.0,3.7222222222222223,3.0,3.5,4.5,3.0,3.0,1
+United States,Working part-time,Administrative and Secretarial Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Asian,55,2.59964685544956,0.0,3.0,3.6666666666666665,1.5,1.0,3.0,4.5,2.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,High school diploma/A-levels,Mixed,28,1.5996468554495602,4.0,6.0,4.5,1.0,3.5,5.0,3.5,4.0,1
+United States,Working full-time,Sales and Customer Service Occupations,Prefer not to say,High school diploma/A-levels,White,64,1.8665489518165201,4.0,5.0,4.388888888888889,1.5,4.0,5.0,1.5,3.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,High school diploma/A-levels,Asian,37,3.7330979036330403,0.0,3.0,4.5,2.5,5.0,4.5,2.0,5.0,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),White,42,1.0,1.0,2.0,2.2777777777777777,4.0,2.5,2.5,4.5,3.5,0
+United Kingdom,Retired,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,51,1.4661958072660801,1.0,4.0,4.666666666666667,3.5,2.0,5.0,2.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,50,0.86654895181652,2.0,3.0,4.666666666666667,1.0,3.0,5.0,3.0,4.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,19,2.46619580726608,1.0,1.0,3.6666666666666665,2.0,4.5,4.5,3.0,4.0,1
+United States,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,25,3.46619580726608,3.0,8.0,3.0,2.0,2.5,4.5,1.5,4.5,1
+United States,Other,Associate Professional and Technical Occupations,Female,Technical/community college,White,40,2.46619580726608,2.0,4.0,3.8333333333333335,1.0,2.0,3.5,4.5,3.5,1
+United Kingdom,A homemaker or stay-at-home parent,Professional Occupations,Female,Technical/community college,Mixed,37,1.4661958072660801,1.0,3.0,3.8333333333333335,3.5,4.5,5.0,3.0,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,Black,39,3.46619580726608,0.0,3.0,3.7777777777777777,2.0,4.5,3.5,2.0,3.5,1
+United Kingdom,Unemployed and looking for work,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,34,1.4661958072660801,2.0,3.0,3.2777777777777777,1.0,3.5,4.5,4.0,5.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,Mixed,43,1.4661958072660801,0.0,4.0,2.0,2.5,4.5,5.0,4.0,5.0,1
+United States,Retired,"Caring, Leisure and Other Service Occupations",Male,Graduate degree (MA/MSc/MPhil/other),White,62,1.73309790363304,4.0,4.0,3.0,4.5,5.0,5.0,3.5,3.0,1
+United Kingdom,Retired,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,31,1.4661958072660801,4.0,2.0,3.9444444444444446,4.0,3.5,4.5,1.0,4.0,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),Black,21,2.59964685544956,1.0,3.0,3.111111111111111,3.5,3.5,3.5,2.0,3.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,58,1.8665489518165201,1.0,3.0,2.3333333333333335,5.0,3.0,4.5,2.5,4.5,0
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,55,2.7330979036330403,0.0,3.0,3.888888888888889,1.5,3.0,4.0,2.0,3.5,1
+United Kingdom,Working full-time,"Process, Plant and Machine Operatives",Female,High school diploma/A-levels,White,53,2.59964685544956,2.0,3.0,2.111111111111111,2.0,4.0,4.0,2.0,1.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,32,1.4661958072660801,2.0,4.0,4.444444444444445,2.5,3.5,4.0,3.0,4.0,1
+United States,Other,Other,Male,Graduate degree (MA/MSc/MPhil/other),White,38,2.59964685544956,2.0,4.0,3.0555555555555554,3.5,5.0,3.5,2.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,32,3.7330979036330403,3.0,6.0,1.7777777777777777,1.5,3.5,4.5,2.0,4.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,Technical/community college,White,37,2.59964685544956,2.0,3.0,3.5555555555555554,5.0,4.5,5.0,2.5,3.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,37,4.0,0.0,3.0,1.7777777777777777,2.5,3.5,3.5,3.0,3.5,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Female,Graduate degree (MA/MSc/MPhil/other),Asian,41,3.46619580726608,1.0,6.0,3.1666666666666665,3.5,4.0,4.0,2.0,4.0,1
+United States,Other,Other,Female,Graduate degree (MA/MSc/MPhil/other),White,61,0.5996468554495602,1.0,3.0,3.5555555555555554,1.5,2.5,4.5,3.0,5.0,0
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Technical/community college,White,63,2.46619580726608,2.0,6.0,4.166666666666667,2.5,3.5,4.5,3.0,5.0,0
+United Kingdom,Working full-time,Elementary Occupations,Female,High school diploma/A-levels,White,47,3.7330979036330403,3.0,6.0,4.277777777777778,1.5,3.5,5.0,4.0,4.0,1
+United Kingdom,Working part-time,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,38,2.46619580726608,0.0,4.0,3.888888888888889,4.0,5.0,3.5,4.0,3.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),Mixed,54,2.46619580726608,3.0,4.0,4.222222222222222,3.5,5.0,4.5,2.5,3.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Doctorate degree (PhD/other),White,40,0.5996468554495602,1.0,2.0,3.2777777777777777,2.0,5.0,3.5,1.5,2.0,1
+United Kingdom,Working part-time,"Process, Plant and Machine Operatives",Female,Undergraduate degree (BA/BSc/other),White,54,2.59964685544956,2.0,8.0,4.5,5.0,4.0,5.0,4.5,4.0,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,23,0.46619580726608023,1.0,4.0,1.7777777777777777,3.0,4.0,3.0,3.0,5.0,1
+United Kingdom,Working part-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,53,3.0,0.0,3.0,3.0,3.0,4.5,3.0,4.0,3.0,0
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,Undergraduate degree (BA/BSc/other),White,58,3.7330979036330403,4.0,5.0,3.9444444444444446,1.5,4.0,5.0,5.0,2.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,46,2.59964685544956,3.0,3.0,3.7222222222222223,1.5,5.0,2.5,1.0,2.0,1
+United States,Working full-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,46,2.59964685544956,1.0,5.0,3.7222222222222223,1.0,2.0,4.0,2.0,3.5,1
+United States,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,56,3.46619580726608,3.0,5.0,5.0,3.5,3.5,4.0,3.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,High school diploma/A-levels,White,39,1.73309790363304,3.0,7.0,2.7777777777777777,1.0,2.5,5.0,2.0,4.0,1
+United States,Working part-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),Mixed,32,2.0,1.0,5.0,3.8333333333333335,1.0,4.5,4.0,1.5,4.0,1
+United States,Working full-time,Skilled Trades Occupations,Male,Undergraduate degree (BA/BSc/other),White,60,1.5996468554495602,3.0,5.0,3.0555555555555554,3.0,4.5,5.0,2.5,4.0,1
+United Kingdom,Working part-time,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,51,1.4661958072660801,0.0,3.0,3.7222222222222223,2.0,4.0,5.0,1.5,5.0,1
+United States,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,50,0.7330979036330401,0.0,1.0,1.9444444444444444,1.5,3.5,3.5,3.5,4.0,1
+United Kingdom,A homemaker or stay-at-home parent,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,31,2.7330979036330403,0.0,4.0,3.5,3.5,2.0,5.0,4.0,4.0,1
+United States,Working full-time,Administrative and Secretarial Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Asian,56,0.0,2.0,3.0,3.7222222222222223,1.0,3.0,4.5,1.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Asian,64,2.86654895181652,2.0,4.0,3.7222222222222223,3.0,5.0,3.5,2.0,3.5,1
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,35,2.59964685544956,2.0,3.0,1.7777777777777777,3.5,2.5,4.0,2.0,4.0,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Female,Undergraduate degree (BA/BSc/other),White,32,2.7330979036330403,0.0,4.0,3.7777777777777777,3.5,3.0,3.5,2.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Technical/community college,White,58,2.86654895181652,0.0,7.0,2.1666666666666665,3.5,4.0,3.0,1.5,2.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,High school diploma/A-levels,Asian,47,3.0,0.0,4.0,3.0,5.0,5.0,5.0,3.5,4.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,56,0.5996468554495602,0.0,3.0,3.7222222222222223,2.5,4.5,4.0,4.5,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,34,1.0,2.0,3.0,1.3333333333333333,3.0,3.5,3.5,2.5,1.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Technical/community college,White,58,1.8665489518165201,3.0,4.0,3.7222222222222223,3.0,3.5,5.0,3.0,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Secondary education (e.g. GED/GCSE),Asian,49,2.46619580726608,1.0,5.0,2.1666666666666665,1.5,2.0,2.5,1.0,3.0,1
+United States,Working part-time,Sales and Customer Service Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,30,1.8665489518165201,4.0,6.0,1.3333333333333333,2.0,5.0,4.0,3.0,4.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,54,3.0,1.0,5.0,3.0,3.0,5.0,5.0,1.0,3.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,56,2.46619580726608,1.0,2.0,4.444444444444445,3.5,1.5,5.0,1.5,4.5,1
+United Kingdom,A homemaker or stay-at-home parent,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,39,3.59964685544956,1.0,5.0,3.5,3.0,4.5,5.0,3.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Female,Technical/community college,White,58,3.0,2.0,5.0,4.055555555555555,2.5,5.0,5.0,3.5,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,53,2.7330979036330403,4.0,6.0,3.9444444444444446,3.5,4.5,3.5,1.0,4.0,1
+United Kingdom,Student,Student,Male,Undergraduate degree (BA/BSc/other),White,30,2.59964685544956,1.0,2.0,3.6666666666666665,2.0,2.0,5.0,2.0,5.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,62,2.46619580726608,2.0,5.0,3.2777777777777777,1.5,4.0,3.5,2.0,4.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,37,1.4661958072660801,1.0,7.0,2.0555555555555554,2.0,3.5,4.5,3.5,4.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,64,2.46619580726608,1.0,1.0,2.2777777777777777,3.0,3.0,3.5,3.5,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,25,2.86654895181652,2.0,4.0,3.611111111111111,2.0,1.5,5.0,1.5,2.5,1
+United Kingdom,Other,Administrative and Secretarial Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,44,2.59964685544956,0.0,4.0,3.888888888888889,5.0,3.0,2.5,1.5,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,White,36,3.46619580726608,2.0,4.0,3.8333333333333335,2.0,2.5,5.0,1.5,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,38,2.86654895181652,2.0,3.0,4.777777777777778,4.0,5.0,5.0,2.5,4.0,1
+United Kingdom,Retired,Associate Professional and Technical Occupations,Female,Graduate degree (MA/MSc/MPhil/other),Asian,38,2.7330979036330403,1.0,3.0,3.8333333333333335,3.5,2.0,3.0,1.5,2.5,1
+United Kingdom,Unemployed and looking for work,Sales and Customer Service Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,53,3.46619580726608,1.0,3.0,2.1666666666666665,5.0,4.0,2.5,1.0,3.0,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,49,3.46619580726608,1.0,5.0,3.2777777777777777,4.5,4.0,4.0,5.0,3.0,1
+United Kingdom,Working full-time,"Process, Plant and Machine Operatives",Male,Undergraduate degree (BA/BSc/other),Black,33,2.46619580726608,0.0,5.0,3.111111111111111,2.5,5.0,5.0,3.5,3.0,0
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,41,1.5996468554495602,2.0,2.0,3.888888888888889,1.0,3.5,5.0,2.5,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,High school diploma/A-levels,White,23,2.46619580726608,4.0,3.0,3.5555555555555554,3.0,4.0,4.5,4.5,2.5,1
+United States,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,65,3.59964685544956,1.0,5.0,3.111111111111111,3.5,4.0,4.0,1.5,3.5,1
+United States,Working part-time,Professional Occupations,Female,High school diploma/A-levels,White,32,0.7330979036330401,1.0,1.0,1.1666666666666667,1.5,2.5,3.5,2.5,4.0,0
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,38,1.73309790363304,1.0,5.0,4.388888888888889,2.5,4.0,5.0,4.0,5.0,1
+United States,Working part-time,Professional Occupations,Female,High school diploma/A-levels,White,52,3.0,0.0,4.0,1.7222222222222223,1.0,3.0,4.5,4.5,4.0,0
+United States,Unemployed and looking for work,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,58,1.73309790363304,1.0,3.0,4.333333333333333,4.5,4.0,5.0,2.5,3.0,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,62,2.46619580726608,1.0,3.0,2.5555555555555554,4.0,5.0,3.5,3.0,2.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Doctorate degree (PhD/other),White,42,1.4661958072660801,1.0,3.0,3.6666666666666665,1.5,3.0,3.0,4.5,4.0,1
+United Kingdom,Unemployed and looking for work,Sales and Customer Service Occupations,Female,High school diploma/A-levels,White,37,3.7330979036330403,1.0,3.0,3.9444444444444446,1.5,4.5,4.5,3.0,5.0,1
+United States,A homemaker or stay-at-home parent,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,47,2.59964685544956,1.0,1.0,3.111111111111111,1.0,3.5,5.0,2.0,4.0,1
+United States,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,47,2.0,3.0,4.0,1.7222222222222223,1.5,3.5,3.0,3.0,3.0,0
+United States,Unemployed and looking for work,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,54,2.0,0.0,3.0,3.388888888888889,1.5,3.5,3.0,5.0,4.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,61,3.59964685544956,1.0,7.0,1.4444444444444444,4.0,5.0,4.5,3.0,4.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,37,2.0,3.0,6.0,3.9444444444444446,3.5,4.0,4.5,2.0,3.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,67,2.46619580726608,3.0,5.0,2.6666666666666665,2.0,4.5,4.0,2.0,4.0,1
+United Kingdom,Retired,Associate Professional and Technical Occupations,Female,High school diploma/A-levels,White,41,0.5996468554495602,1.0,2.0,3.7222222222222223,3.0,3.5,5.0,3.5,4.5,0
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Technical/community college,White,24,2.7330979036330403,0.0,3.0,2.3333333333333335,3.5,4.0,4.0,3.5,3.0,1
+United Kingdom,Retired,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,74,1.5996468554495602,0.0,1.0,2.888888888888889,2.0,4.0,4.5,2.0,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,30,2.46619580726608,3.0,7.0,2.111111111111111,3.0,3.5,3.5,2.0,4.0,1
+United States,Working full-time,"Process, Plant and Machine Operatives",Female,Doctorate degree (PhD/other),White,25,1.4661958072660801,3.0,3.0,3.3333333333333335,2.0,4.5,4.5,5.0,4.5,0
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Technical/community college,Black,43,3.59964685544956,0.0,7.0,3.388888888888889,2.0,2.5,4.0,3.0,3.0,1
+United Kingdom,Working part-time,"Caring, Leisure and Other Service Occupations",Male,Undergraduate degree (BA/BSc/other),White,65,1.5996468554495602,1.0,4.0,4.5,2.5,4.0,3.5,3.0,4.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,High school diploma/A-levels,White,38,2.46619580726608,0.0,5.0,2.0,1.0,2.0,3.0,3.5,4.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,64,2.46619580726608,0.0,3.0,3.5,3.5,3.5,4.5,1.0,3.5,1
+United Kingdom,Retired,Sales and Customer Service Occupations,Female,Doctorate degree (PhD/other),White,37,2.46619580726608,1.0,4.0,3.2777777777777777,3.5,3.5,3.0,4.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,29,1.4661958072660801,2.0,4.0,3.111111111111111,3.0,5.0,5.0,1.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,52,3.7330979036330403,1.0,4.0,3.2777777777777777,1.5,4.0,3.5,1.0,3.0,1
+United States,Retired,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,53,2.7330979036330403,2.0,5.0,3.611111111111111,4.0,2.5,5.0,1.0,2.5,1
+United States,Working part-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,45,2.0,3.0,7.0,3.2222222222222223,4.0,4.0,3.0,3.0,4.5,1
+United Kingdom,A homemaker or stay-at-home parent,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,64,2.59964685544956,2.0,5.0,3.6666666666666665,3.5,2.0,3.5,4.0,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,48,3.7330979036330403,0.0,4.0,3.2222222222222223,1.5,5.0,4.0,4.0,2.5,0
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,21,2.7330979036330403,4.0,7.0,2.9444444444444446,1.5,4.0,4.5,1.0,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,58,3.7330979036330403,4.0,5.0,2.8333333333333335,1.0,5.0,2.0,3.0,3.0,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Male,Technical/community college,White,34,1.5996468554495602,3.0,4.0,3.111111111111111,3.5,2.0,4.5,1.5,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Doctorate degree (PhD/other),Asian,59,1.5996468554495602,1.0,1.0,3.5555555555555554,4.0,5.0,4.5,1.0,4.5,1
+United Kingdom,Retired,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,50,2.7330979036330403,2.0,3.0,3.7777777777777777,1.5,4.5,5.0,3.0,1.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,38,3.0,4.0,7.0,2.9444444444444446,1.0,4.0,3.5,5.0,4.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,Other,59,1.73309790363304,3.0,4.0,4.111111111111111,2.0,2.0,2.5,2.0,3.5,0
+United Kingdom,Student,Student,Male,Undergraduate degree (BA/BSc/other),White,42,2.86654895181652,3.0,4.0,1.9444444444444444,5.0,2.0,3.5,4.5,3.0,1
+United States,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,37,2.46619580726608,2.0,5.0,2.388888888888889,3.5,5.0,2.5,1.5,3.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,62,2.59964685544956,1.0,6.0,3.6666666666666665,4.0,3.0,4.5,3.5,5.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,54,3.0,2.0,4.0,3.5,3.0,4.0,5.0,3.0,3.0,0
+United Kingdom,Retired,Other,Male,Undergraduate degree (BA/BSc/other),White,44,2.46619580726608,2.0,4.0,2.4444444444444446,1.5,3.0,2.5,2.0,3.5,1
+United Kingdom,Other,"Caring, Leisure and Other Service Occupations",Male,Technical/community college,Black,48,2.7330979036330403,2.0,5.0,3.0,1.5,4.5,4.5,3.5,3.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,27,2.46619580726608,0.0,2.0,3.2222222222222223,2.0,3.0,3.0,4.0,4.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Secondary education (e.g. GED/GCSE),White,50,1.8665489518165201,4.0,7.0,3.3333333333333335,3.0,2.0,3.0,4.0,5.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,White,39,2.46619580726608,0.0,3.0,4.333333333333333,2.5,2.5,4.0,1.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,63,0.46619580726608023,1.0,2.0,4.833333333333333,1.5,4.0,4.5,4.0,3.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,49,2.59964685544956,1.0,5.0,4.0,4.0,4.0,5.0,4.5,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,43,2.0,1.0,3.0,1.4444444444444444,1.5,1.0,5.0,2.0,2.5,0
+United Kingdom,Retired,"Managers, Directors and Senior Officials",Female,Technical/community college,White,58,2.59964685544956,0.0,3.0,3.5555555555555554,2.5,4.0,4.5,2.5,2.5,1
+United Kingdom,Working full-time,Elementary Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,43,1.8665489518165201,1.0,4.0,2.111111111111111,2.0,3.5,4.0,5.0,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,49,1.8665489518165201,1.0,3.0,4.777777777777778,4.5,4.0,4.5,2.0,4.5,0
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,39,1.8665489518165201,1.0,4.0,2.7222222222222223,3.0,5.0,4.5,3.0,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Secondary education (e.g. GED/GCSE),White,30,1.4661958072660801,1.0,4.0,3.6666666666666665,2.5,1.0,4.0,4.0,5.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,32,2.46619580726608,0.0,2.0,3.888888888888889,3.0,4.5,3.0,2.5,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Technical/community college,White,24,2.86654895181652,1.0,3.0,3.6666666666666665,3.0,3.5,3.0,5.0,5.0,1
+United Kingdom,Other,Other,Female,High school diploma/A-levels,White,27,1.8665489518165201,0.0,2.0,3.6666666666666665,3.5,4.0,5.0,4.5,3.0,1
+United States,Student,Student,Female,High school diploma/A-levels,White,50,2.86654895181652,3.0,7.0,4.277777777777778,4.5,4.0,3.0,4.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,37,1.8665489518165201,2.0,6.0,4.0,3.5,3.5,5.0,2.5,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,26,1.8665489518165201,2.0,5.0,1.0,3.5,3.0,5.0,4.5,3.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Graduate degree (MA/MSc/MPhil/other),White,49,0.46619580726608023,1.0,1.0,3.3333333333333335,3.0,3.5,5.0,4.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,36,2.46619580726608,0.0,5.0,1.4444444444444444,4.0,2.5,2.0,4.0,4.5,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,43,1.0,1.0,2.0,3.2777777777777777,2.5,4.5,5.0,3.5,4.0,0
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Female,Technical/community college,White,64,1.73309790363304,0.0,3.0,2.7777777777777777,3.0,3.0,5.0,1.0,3.0,0
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,45,3.7330979036330403,1.0,4.0,3.0555555555555554,4.0,4.5,2.0,3.0,5.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Technical/community college,White,36,1.4661958072660801,1.0,1.0,3.6666666666666665,1.5,4.0,3.5,2.0,5.0,1
+United States,Working part-time,"Managers, Directors and Senior Officials",Male,Graduate degree (MA/MSc/MPhil/other),Other,37,1.73309790363304,2.0,3.0,4.055555555555555,4.0,4.0,3.5,2.0,1.0,1
+United Kingdom,Working full-time,Elementary Occupations,Male,Undergraduate degree (BA/BSc/other),White,64,2.59964685544956,4.0,6.0,3.3333333333333335,2.5,4.0,2.0,2.5,4.5,1
+United States,Unemployed and looking for work,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,31,2.46619580726608,1.0,5.0,3.0,3.0,1.5,3.5,4.5,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,37,-0.5338041927339198,2.0,1.0,3.611111111111111,4.0,4.0,4.0,3.5,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,75,3.59964685544956,0.0,5.0,2.4444444444444446,1.5,3.5,4.0,2.0,4.0,1
+United Kingdom,Working part-time,Professional Occupations,Female,Technical/community college,White,52,2.59964685544956,1.0,7.0,3.7222222222222223,4.0,3.0,3.0,3.5,4.0,1
+United Kingdom,Student,Student,Male,Undergraduate degree (BA/BSc/other),White,37,1.5996468554495602,2.0,6.0,1.7777777777777777,4.5,1.5,5.0,1.0,3.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,46,1.4661958072660801,0.0,1.0,4.0,2.5,3.5,4.0,3.0,4.5,1
+United Kingdom,A homemaker or stay-at-home parent,Professional Occupations,Male,Doctorate degree (PhD/other),White,40,2.0,1.0,5.0,3.888888888888889,1.5,4.5,4.0,2.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,36,1.4661958072660801,4.0,5.0,3.7222222222222223,3.0,4.0,3.5,4.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,32,2.7330979036330403,2.0,5.0,2.1666666666666665,4.0,5.0,4.0,3.0,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Technical/community college,White,34,2.59964685544956,4.0,4.0,3.7777777777777777,2.0,3.5,3.5,1.5,1.5,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Technical/community college,White,60,2.59964685544956,2.0,5.0,3.5555555555555554,2.5,4.5,4.0,1.0,3.5,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Male,High school diploma/A-levels,White,58,2.59964685544956,1.0,4.0,4.0,2.0,4.0,3.5,2.5,3.5,1
+United Kingdom,A homemaker or stay-at-home parent,Other,Male,Graduate degree (MA/MSc/MPhil/other),Black,35,3.59964685544956,2.0,2.0,3.7222222222222223,2.0,4.0,5.0,1.5,4.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,31,3.0,1.0,7.0,3.2777777777777777,3.5,3.5,5.0,3.0,5.0,1
+United Kingdom,Working part-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),Black,53,3.7330979036330403,3.0,3.0,3.6666666666666665,4.0,4.0,2.5,4.0,3.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,25,1.0,0.0,1.0,3.2222222222222223,2.5,1.0,1.5,3.0,4.5,0
+United Kingdom,Other,Professional Occupations,Female,Technical/community college,White,47,2.46619580726608,0.0,5.0,4.5,4.0,1.5,4.0,3.0,3.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,33,2.59964685544956,1.0,3.0,3.8333333333333335,2.0,4.0,2.5,5.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,34,2.7330979036330403,2.0,5.0,2.0,3.0,4.0,4.0,4.0,5.0,1
+United Kingdom,Retired,Professional Occupations,Male,High school diploma/A-levels,White,42,2.0,2.0,0.0,4.166666666666667,1.5,4.0,4.0,2.0,3.0,1
+United Kingdom,Retired,"Process, Plant and Machine Operatives",Male,Undergraduate degree (BA/BSc/other),White,23,1.4661958072660801,2.0,3.0,2.5555555555555554,1.5,3.5,4.5,1.5,3.5,1
+United States,Retired,Other,Male,High school diploma/A-levels,White,32,2.59964685544956,0.0,5.0,2.8333333333333335,1.5,4.0,3.5,3.0,3.0,1
+United Kingdom,Student,Student,Male,Undergraduate degree (BA/BSc/other),White,43,1.5996468554495602,3.0,1.0,2.888888888888889,2.0,3.0,5.0,2.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,33,0.7330979036330401,1.0,2.0,3.4444444444444446,1.5,5.0,4.0,3.0,4.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,38,2.7330979036330403,1.0,3.0,3.0555555555555554,3.0,4.5,3.0,4.0,4.5,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,75,3.0,1.0,6.0,2.5555555555555554,1.0,4.0,3.5,2.0,3.5,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Male,Graduate degree (MA/MSc/MPhil/other),White,30,3.46619580726608,3.0,6.0,4.333333333333333,2.5,2.5,4.5,4.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,44,2.46619580726608,1.0,4.0,3.0,4.0,5.0,5.0,2.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,Asian,46,3.0,0.0,5.0,2.5555555555555554,1.0,4.0,3.0,3.5,4.5,1
+United States,Working full-time,Skilled Trades Occupations,Female,Doctorate degree (PhD/other),White,44,1.73309790363304,2.0,2.0,2.111111111111111,1.0,5.0,3.0,2.5,3.0,1
+United States,Working full-time,"Process, Plant and Machine Operatives",Male,Technical/community college,White,26,2.59964685544956,0.0,3.0,2.7777777777777777,4.0,3.5,5.0,1.5,4.5,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Male,Undergraduate degree (BA/BSc/other),Black,44,1.5996468554495602,2.0,6.0,4.166666666666667,4.0,3.5,5.0,2.0,4.0,1
+United Kingdom,Retired,Elementary Occupations,Female,Undergraduate degree (BA/BSc/other),White,43,3.7330979036330403,2.0,5.0,2.111111111111111,3.5,2.0,4.0,2.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,High school diploma/A-levels,White,57,2.86654895181652,2.0,7.0,4.333333333333333,2.0,3.0,5.0,2.5,4.5,1
+United Kingdom,Retired,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,36,2.59964685544956,1.0,7.0,3.3333333333333335,1.0,4.5,3.5,4.5,5.0,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,37,3.7330979036330403,2.0,6.0,3.6666666666666665,2.5,4.0,4.0,2.0,5.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Secondary education (e.g. GED/GCSE),White,39,1.5996468554495602,3.0,4.0,2.8333333333333335,1.0,4.0,5.0,1.5,4.0,1
+United Kingdom,Retired,Other,Male,Undergraduate degree (BA/BSc/other),White,27,2.59964685544956,3.0,6.0,2.7777777777777777,2.0,5.0,4.0,2.0,2.5,0
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,44,2.7330979036330403,0.0,5.0,3.6666666666666665,4.0,5.0,5.0,5.0,4.0,1
+United States,Unemployed and looking for work,Administrative and Secretarial Occupations,Male,Secondary education (e.g. GED/GCSE),White,36,3.59964685544956,2.0,4.0,3.9444444444444446,3.0,2.0,5.0,2.0,3.0,1
+United States,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),Asian,56,2.86654895181652,3.0,7.0,4.055555555555555,2.0,3.0,5.0,1.5,3.0,1
+United States,A homemaker or stay-at-home parent,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),Black,41,3.46619580726608,2.0,4.0,4.333333333333333,2.5,3.0,5.0,4.0,5.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),Black,41,0.5996468554495602,0.0,1.0,2.7777777777777777,3.0,3.0,2.0,4.0,3.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Technical/community college,White,54,0.46619580726608023,2.0,2.0,3.5555555555555554,3.5,4.5,5.0,3.0,4.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Technical/community college,White,53,1.4661958072660801,0.0,4.0,3.1666666666666665,4.0,4.0,4.0,1.5,4.0,1
+United States,Working full-time,Professional Occupations,Female,Doctorate degree (PhD/other),White,45,1.4661958072660801,1.0,3.0,2.4444444444444446,2.0,4.5,4.0,4.5,3.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Doctorate degree (PhD/other),Mixed,65,3.46619580726608,3.0,4.0,3.7777777777777777,4.0,4.5,4.0,4.0,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,50,2.46619580726608,1.0,6.0,4.0,5.0,4.0,3.5,2.0,3.5,1
+United States,Working part-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,31,1.4661958072660801,1.0,0.0,3.0555555555555554,2.0,1.0,5.0,2.0,4.5,1
+United States,Unemployed and looking for work,Administrative and Secretarial Occupations,Male,Technical/community college,White,42,1.4661958072660801,2.0,4.0,3.6666666666666665,2.0,2.5,4.5,2.0,4.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,26,1.0,2.0,5.0,3.111111111111111,1.5,3.5,3.0,2.0,4.0,1
+United Kingdom,Unemployed and looking for work,Sales and Customer Service Occupations,Female,Technical/community college,White,47,2.86654895181652,1.0,6.0,3.111111111111111,5.0,4.0,4.0,5.0,5.0,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,61,3.86654895181652,2.0,4.0,3.2777777777777777,1.5,4.5,4.5,1.0,4.5,1
+United States,Working full-time,Administrative and Secretarial Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,50,1.73309790363304,3.0,4.0,4.0,1.0,4.5,3.5,3.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Male,Technical/community college,White,63,2.46619580726608,3.0,7.0,3.9444444444444446,4.0,5.0,5.0,1.0,4.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Graduate degree (MA/MSc/MPhil/other),White,33,1.8665489518165201,0.0,1.0,3.8333333333333335,2.0,3.5,4.0,2.0,3.0,1
+United Kingdom,A homemaker or stay-at-home parent,Other,Male,Technical/community college,White,42,3.46619580726608,0.0,5.0,4.0,2.5,2.5,5.0,4.0,5.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Technical/community college,Mixed,50,2.0,3.0,7.0,4.222222222222222,5.0,2.0,4.5,2.0,3.0,0
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,57,3.0,1.0,4.0,2.888888888888889,1.5,3.5,5.0,2.0,4.0,1
+United Kingdom,Retired,"Managers, Directors and Senior Officials",Female,Secondary education (e.g. GED/GCSE),White,40,2.7330979036330403,1.0,5.0,3.2222222222222223,1.5,4.0,4.5,1.5,2.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Mixed,41,2.0,1.0,2.0,4.5,1.0,3.5,4.0,4.0,4.5,1
+United States,Unemployed and looking for work,"Process, Plant and Machine Operatives",Male,Graduate degree (MA/MSc/MPhil/other),White,30,1.0,2.0,3.0,3.0555555555555554,4.0,4.0,2.5,4.5,3.0,1
+United States,Working full-time,Skilled Trades Occupations,Male,Secondary education (e.g. GED/GCSE),Asian,41,3.7330979036330403,3.0,8.0,3.7222222222222223,2.5,4.5,4.5,2.0,3.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,63,2.46619580726608,0.0,3.0,2.4444444444444446,1.5,3.0,4.5,4.5,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,58,2.7330979036330403,0.0,5.0,3.5555555555555554,5.0,5.0,4.5,3.5,2.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,White,43,1.8665489518165201,1.0,5.0,4.0,1.5,2.0,4.0,3.5,2.5,1
+United States,Working full-time,Professional Occupations,Male,Technical/community college,White,49,0.86654895181652,2.0,2.0,1.3888888888888888,1.0,2.0,3.5,5.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,56,1.4661958072660801,0.0,3.0,3.6666666666666665,2.0,2.0,2.0,3.5,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,33,1.8665489518165201,0.0,3.0,3.8333333333333335,3.0,4.0,4.0,2.0,4.5,1
+United Kingdom,Other,Skilled Trades Occupations,Male,Undergraduate degree (BA/BSc/other),White,54,1.73309790363304,1.0,2.0,1.8888888888888888,3.5,5.0,5.0,5.0,4.0,1
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Male,High school diploma/A-levels,White,30,2.59964685544956,2.0,3.0,4.555555555555555,3.0,3.0,2.5,5.0,4.5,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,35,2.46619580726608,1.0,4.0,2.0,2.0,4.0,4.0,1.5,2.0,1
+United Kingdom,Unemployed and looking for work,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,64,2.7330979036330403,1.0,4.0,2.5,1.5,4.0,4.0,2.0,3.0,1
+United Kingdom,Working part-time,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),White,45,1.4661958072660801,3.0,5.0,4.777777777777778,3.0,4.0,5.0,3.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,70,2.7330979036330403,1.0,1.0,2.3333333333333335,2.5,4.0,3.0,3.5,3.0,1
+United States,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,29,1.4661958072660801,1.0,2.0,4.388888888888889,1.5,3.0,4.5,3.0,4.5,1
+United States,Working full-time,Elementary Occupations,Male,Undergraduate degree (BA/BSc/other),White,42,1.4661958072660801,2.0,5.0,3.2222222222222223,4.0,4.0,5.0,1.5,1.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,78,1.8665489518165201,1.0,5.0,4.444444444444445,3.0,4.5,4.0,2.0,5.0,1
+United Kingdom,Unemployed and looking for work,Sales and Customer Service Occupations,Male,High school diploma/A-levels,White,21,2.0,4.0,5.0,3.611111111111111,1.0,3.0,4.0,3.0,3.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Doctorate degree (PhD/other),Black,27,1.4661958072660801,1.0,4.0,3.1666666666666665,3.5,4.5,4.0,2.0,5.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Doctorate degree (PhD/other),Black,28,1.4661958072660801,0.0,1.0,2.0555555555555554,2.0,4.0,3.5,2.0,5.0,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Female,High school diploma/A-levels,Black,51,2.59964685544956,1.0,5.0,3.6666666666666665,2.0,3.0,4.0,1.0,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,High school diploma/A-levels,White,49,2.59964685544956,1.0,6.0,2.4444444444444446,1.5,3.5,5.0,4.0,5.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,32,-0.4003531445504398,2.0,1.0,2.9444444444444446,3.5,2.5,3.5,4.5,5.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,High school diploma/A-levels,White,64,1.8665489518165201,1.0,5.0,4.166666666666667,4.0,4.5,5.0,3.5,3.0,1
+United States,Working full-time,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),White,37,1.4661958072660801,3.0,7.0,3.7222222222222223,3.0,3.5,4.0,1.0,4.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,53,2.59964685544956,0.0,5.0,3.7222222222222223,3.0,2.0,4.0,2.0,4.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,30,0.46619580726608023,1.0,3.0,3.5555555555555554,4.5,3.0,4.5,1.5,3.0,1
+United States,Retired,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,57,1.8665489518165201,0.0,1.0,3.111111111111111,2.5,4.0,3.5,1.0,2.5,0
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,35,2.46619580726608,3.0,7.0,4.055555555555555,2.0,3.5,5.0,3.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Female,High school diploma/A-levels,White,53,2.59964685544956,1.0,5.0,2.2222222222222223,3.0,3.5,3.5,2.0,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,52,3.7330979036330403,3.0,7.0,2.7777777777777777,2.5,4.0,5.0,4.5,4.5,1
+United Kingdom,Unemployed and looking for work,Other,Male,Graduate degree (MA/MSc/MPhil/other),White,60,2.7330979036330403,0.0,5.0,2.9444444444444446,2.0,4.5,3.5,3.5,3.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,40,2.59964685544956,1.0,4.0,3.7222222222222223,2.5,1.5,3.5,1.5,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,54,2.7330979036330403,3.0,5.0,4.0,3.0,3.5,2.0,3.0,4.0,1
+United States,Unemployed and looking for work,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,41,2.46619580726608,0.0,4.0,3.7222222222222223,5.0,3.0,3.0,5.0,5.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,40,0.5996468554495602,1.0,3.0,3.7222222222222223,5.0,4.0,5.0,2.0,5.0,1
+United Kingdom,Student,Student,Male,Graduate degree (MA/MSc/MPhil/other),White,54,1.8665489518165201,2.0,5.0,3.6666666666666665,1.0,4.5,5.0,3.5,3.5,1
+United Kingdom,Unemployed and looking for work,"Caring, Leisure and Other Service Occupations",Female,Undergraduate degree (BA/BSc/other),White,40,0.5996468554495602,0.0,4.0,1.0,3.0,2.5,4.0,2.5,4.0,0
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Male,High school diploma/A-levels,White,41,3.46619580726608,2.0,3.0,4.055555555555555,1.5,4.5,4.0,3.0,3.0,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Male,High school diploma/A-levels,White,63,2.59964685544956,1.0,1.0,4.833333333333333,2.5,3.5,5.0,2.5,3.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Secondary education (e.g. GED/GCSE),White,57,1.73309790363304,1.0,1.0,1.6111111111111112,2.0,2.0,5.0,1.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,48,1.4661958072660801,1.0,5.0,2.2222222222222223,4.5,4.0,3.0,1.5,2.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Technical/community college,White,64,2.7330979036330403,0.0,7.0,2.4444444444444446,1.5,4.0,5.0,1.0,4.0,1
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,28,2.59964685544956,1.0,4.0,1.3333333333333333,3.0,5.0,2.5,1.5,4.0,1
+United Kingdom,A homemaker or stay-at-home parent,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,53,3.46619580726608,0.0,2.0,3.7777777777777777,3.5,3.5,3.0,2.0,2.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Graduate degree (MA/MSc/MPhil/other),Asian,24,0.46619580726608023,1.0,4.0,2.388888888888889,2.0,5.0,2.5,2.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,49,1.8665489518165201,3.0,5.0,4.277777777777778,2.5,2.5,4.5,3.0,3.5,1
+United Kingdom,Other,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,26,1.5996468554495602,1.0,3.0,3.0555555555555554,2.0,2.5,5.0,4.5,5.0,1
+United Kingdom,Other,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),Asian,49,4.0,3.0,6.0,2.1666666666666665,4.0,4.0,3.0,2.0,2.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,31,1.5996468554495602,2.0,3.0,3.7222222222222223,2.0,2.0,5.0,4.0,3.0,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,31,2.7330979036330403,2.0,5.0,2.388888888888889,2.5,3.0,3.5,3.0,1.5,1
+United States,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,40,1.4661958072660801,4.0,7.0,1.9444444444444444,1.5,4.5,3.5,2.5,3.5,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,37,2.46619580726608,1.0,3.0,3.611111111111111,2.0,2.0,4.0,1.5,4.5,1
+United States,Working part-time,"Managers, Directors and Senior Officials",Male,Graduate degree (MA/MSc/MPhil/other),White,38,3.46619580726608,1.0,5.0,4.388888888888889,4.0,4.0,5.0,2.0,4.0,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,33,1.5996468554495602,3.0,3.0,3.5555555555555554,3.0,4.0,5.0,1.0,5.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,41,2.59964685544956,1.0,3.0,1.3333333333333333,2.0,5.0,5.0,1.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Doctorate degree (PhD/other),Black,30,1.0,1.0,2.0,2.7777777777777777,1.5,4.5,3.5,2.0,2.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,35,0.5996468554495602,0.0,2.0,3.611111111111111,4.5,5.0,4.5,1.0,4.0,1
+United States,Retired,Elementary Occupations,Female,Technical/community college,Black,43,2.86654895181652,1.0,5.0,3.388888888888889,1.5,2.0,2.5,4.0,3.5,1
+United Kingdom,Unemployed and looking for work,Sales and Customer Service Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,37,1.8665489518165201,2.0,4.0,2.2222222222222223,1.5,4.0,2.0,4.0,4.0,1
+United States,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,57,2.46619580726608,3.0,5.0,3.2777777777777777,1.5,4.0,4.0,2.0,3.5,1
+United Kingdom,Student,Student,Male,High school diploma/A-levels,White,70,2.46619580726608,3.0,6.0,4.777777777777778,3.5,2.5,4.5,4.0,3.0,1
+United Kingdom,Retired,Professional Occupations,Male,Technical/community college,White,70,3.0,4.0,5.0,2.8333333333333335,3.0,4.0,5.0,2.0,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,57,0.46619580726608023,0.0,3.0,4.277777777777778,1.5,1.0,2.0,3.5,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Technical/community college,White,38,1.4661958072660801,1.0,1.0,3.111111111111111,3.0,1.5,4.0,3.5,3.0,0
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,39,1.8665489518165201,1.0,4.0,4.166666666666667,1.0,2.0,4.5,4.0,4.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Technical/community college,White,58,2.46619580726608,1.0,3.0,3.5,3.5,5.0,4.5,2.0,3.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,30,3.0,1.0,4.0,3.8333333333333335,4.0,3.0,5.0,1.0,2.5,1
+United States,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),Black,55,2.46619580726608,2.0,4.0,3.9444444444444446,4.0,4.5,5.0,4.5,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,24,1.0,4.0,6.0,3.7222222222222223,2.5,3.5,3.5,4.0,4.5,0
+United Kingdom,Working full-time,Elementary Occupations,Female,Technical/community college,White,28,2.59964685544956,0.0,3.0,4.5,4.5,3.5,3.5,4.5,5.0,1
+United States,Working full-time,Administrative and Secretarial Occupations,Male,Technical/community college,White,56,1.73309790363304,0.0,4.0,3.7777777777777777,2.5,3.0,2.0,5.0,4.0,1
+United Kingdom,Retired,Associate Professional and Technical Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,68,1.8665489518165201,1.0,3.0,1.6111111111111112,1.5,4.0,3.5,3.0,3.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,High school diploma/A-levels,White,38,2.46619580726608,3.0,4.0,4.833333333333333,1.0,2.5,4.0,2.5,5.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,48,2.59964685544956,0.0,4.0,4.611111111111111,2.0,2.5,4.5,4.5,5.0,1
+United Kingdom,Other,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,38,3.86654895181652,0.0,4.0,3.7777777777777777,1.5,4.0,5.0,2.5,1.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Male,Undergraduate degree (BA/BSc/other),White,52,2.46619580726608,1.0,4.0,2.2777777777777777,2.5,3.5,3.5,5.0,3.0,1
+United States,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,54,3.59964685544956,0.0,3.0,2.2777777777777777,3.0,4.0,3.5,5.0,4.5,1
+United Kingdom,Unemployed and looking for work,"Managers, Directors and Senior Officials",Female,Undergraduate degree (BA/BSc/other),White,75,1.8665489518165201,1.0,5.0,3.0,3.0,4.0,5.0,1.0,3.5,1
+United Kingdom,Working part-time,Associate Professional and Technical Occupations,Female,Technical/community college,White,39,2.46619580726608,2.0,4.0,3.0,1.5,4.5,4.5,2.0,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,High school diploma/A-levels,White,58,1.73309790363304,1.0,4.0,3.888888888888889,5.0,4.5,3.0,3.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Female,High school diploma/A-levels,White,36,2.46619580726608,2.0,3.0,3.5555555555555554,3.0,4.5,5.0,2.5,5.0,1
+United States,Working full-time,Administrative and Secretarial Occupations,Female,Doctorate degree (PhD/other),Black,37,2.46619580726608,0.0,3.0,3.611111111111111,4.0,4.0,4.5,3.5,2.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,58,2.86654895181652,2.0,5.0,3.9444444444444446,2.5,1.0,5.0,4.0,3.0,1
+United States,Working part-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),White,32,3.46619580726608,0.0,5.0,2.5555555555555554,4.5,4.5,4.5,1.0,5.0,1
+United Kingdom,Working full-time,"Process, Plant and Machine Operatives",Female,Undergraduate degree (BA/BSc/other),White,27,2.46619580726608,3.0,6.0,3.7222222222222223,3.0,4.0,5.0,2.0,2.5,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Male,High school diploma/A-levels,Black,43,1.4661958072660801,1.0,1.0,2.888888888888889,3.5,2.5,3.5,4.0,5.0,1
+United Kingdom,Working part-time,Skilled Trades Occupations,Male,Doctorate degree (PhD/other),White,25,2.0,3.0,4.0,3.7222222222222223,3.0,1.5,3.0,1.5,3.5,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,43,3.0,0.0,3.0,3.4444444444444446,4.0,3.0,4.5,1.0,4.5,1
+United Kingdom,Working part-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),Black,42,2.59964685544956,4.0,7.0,3.7222222222222223,5.0,4.5,4.5,3.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,42,3.7330979036330403,2.0,6.0,3.388888888888889,3.0,3.5,4.5,2.0,3.5,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Male,Undergraduate degree (BA/BSc/other),White,45,1.4661958072660801,2.0,3.0,3.0,3.0,4.5,4.0,1.0,3.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,38,2.46619580726608,2.0,4.0,3.7777777777777777,4.0,4.0,5.0,3.5,3.0,1
+United States,Working part-time,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,69,2.59964685544956,4.0,3.0,4.166666666666667,2.0,4.0,3.0,3.0,3.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,Asian,35,2.7330979036330403,0.0,3.0,3.6666666666666665,4.5,4.0,4.0,2.0,5.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,Technical/community college,White,46,3.7330979036330403,0.0,6.0,2.7777777777777777,3.5,5.0,5.0,4.0,4.5,1
+United Kingdom,Unemployed and looking for work,Associate Professional and Technical Occupations,Female,Technical/community college,White,36,0.5996468554495602,3.0,1.0,3.9444444444444446,3.0,5.0,4.0,4.0,5.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,High school diploma/A-levels,White,43,2.46619580726608,0.0,4.0,3.8333333333333335,1.5,4.0,5.0,3.0,2.5,1
+United Kingdom,Other,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),Black,41,2.59964685544956,0.0,2.0,3.111111111111111,2.5,3.5,3.5,4.0,4.0,1
+United States,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,54,2.0,2.0,6.0,4.833333333333333,2.0,4.5,4.5,3.5,3.0,1
+United Kingdom,Working part-time,Administrative and Secretarial Occupations,Male,Doctorate degree (PhD/other),White,39,2.0,4.0,7.0,1.7777777777777777,1.5,4.0,4.0,2.0,3.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Technical/community college,White,68,1.4661958072660801,1.0,5.0,4.555555555555555,4.0,2.0,4.0,1.5,4.5,1
+United Kingdom,Working part-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,White,27,0.0,0.0,1.0,3.888888888888889,1.5,2.0,4.0,3.0,4.5,1
+United Kingdom,A homemaker or stay-at-home parent,Other,Male,Technical/community college,White,33,2.46619580726608,0.0,3.0,2.2222222222222223,2.0,3.0,4.0,2.5,3.0,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,Graduate degree (MA/MSc/MPhil/other),White,72,2.59964685544956,0.0,5.0,2.3333333333333335,3.5,4.5,3.5,4.5,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,51,1.5996468554495602,1.0,3.0,3.888888888888889,2.0,3.5,4.5,4.5,4.5,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,Technical/community college,White,48,1.4661958072660801,2.0,3.0,3.111111111111111,2.0,4.0,4.5,3.0,4.0,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Male,Graduate degree (MA/MSc/MPhil/other),White,41,2.59964685544956,1.0,6.0,2.5,2.5,4.0,4.0,2.0,4.0,1
+United Kingdom,Unemployed and looking for work,Associate Professional and Technical Occupations,Female,Doctorate degree (PhD/other),White,55,2.0,1.0,2.0,3.9444444444444446,4.5,4.0,3.5,1.5,3.0,1
+United Kingdom,Retired,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,26,3.86654895181652,1.0,7.0,4.222222222222222,1.5,4.0,3.5,3.5,3.0,0
+United Kingdom,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Black,39,2.59964685544956,2.0,5.0,2.9444444444444446,3.5,2.5,3.0,2.0,3.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Secondary education (e.g. GED/GCSE),White,53,2.46619580726608,2.0,3.0,3.388888888888889,3.0,3.0,5.0,2.0,3.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,42,2.0,0.0,3.0,2.4444444444444446,2.5,4.0,2.0,1.5,4.0,1
+United Kingdom,A homemaker or stay-at-home parent,Associate Professional and Technical Occupations,Female,High school diploma/A-levels,Black,31,3.59964685544956,0.0,4.0,2.111111111111111,2.0,3.0,4.0,3.5,3.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Technical/community college,White,54,2.86654895181652,1.0,5.0,1.9444444444444444,1.5,4.0,4.0,2.0,5.0,1
+United Kingdom,Working full-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),Mixed,55,2.7330979036330403,0.0,4.0,3.111111111111111,1.0,2.0,4.5,3.0,4.5,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),Mixed,51,2.0,0.0,4.0,2.4444444444444446,2.5,3.5,5.0,2.0,4.0,1
+United Kingdom,Retired,Elementary Occupations,Female,Technical/community college,White,49,3.46619580726608,2.0,6.0,4.777777777777778,1.5,4.0,5.0,1.0,5.0,1
+United Kingdom,Other,Other,Male,Secondary education (e.g. GED/GCSE),White,25,3.0,1.0,6.0,3.8333333333333335,1.5,4.0,4.5,2.0,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,62,3.7330979036330403,1.0,5.0,3.4444444444444446,2.5,3.0,4.0,1.5,3.5,1
+United States,Working full-time,Professional Occupations,Male,High school diploma/A-levels,White,46,1.73309790363304,0.0,2.0,3.8333333333333335,1.0,4.0,4.0,4.0,4.5,1
+United Kingdom,Working full-time,Sales and Customer Service Occupations,Female,Graduate degree (MA/MSc/MPhil/other),Other,48,2.46619580726608,1.0,2.0,4.5,4.0,3.0,4.5,3.0,3.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,35,1.4661958072660801,1.0,4.0,2.0555555555555554,4.0,4.0,5.0,3.5,3.5,1
+United States,Working full-time,Administrative and Secretarial Occupations,Female,Technical/community college,White,30,1.73309790363304,3.0,4.0,3.5,2.0,1.0,5.0,1.5,5.0,1
+United Kingdom,Retired,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,39,0.5996468554495602,0.0,4.0,3.0,1.5,2.0,4.0,3.0,3.0,1
+United Kingdom,A homemaker or stay-at-home parent,Elementary Occupations,Female,Undergraduate degree (BA/BSc/other),White,58,1.5996468554495602,2.0,5.0,4.5,3.5,4.5,5.0,3.5,4.0,0
+United Kingdom,Other,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,64,0.7330979036330401,2.0,4.0,4.0,4.0,2.0,4.0,3.0,5.0,0
+United Kingdom,Retired,Associate Professional and Technical Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Asian,30,2.0,1.0,7.0,2.111111111111111,1.0,3.0,4.0,1.0,3.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,64,0.5996468554495602,4.0,3.0,2.7777777777777777,3.5,5.0,3.5,3.0,2.5,0
+United Kingdom,Working part-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,60,2.7330979036330403,2.0,4.0,3.4444444444444446,1.0,4.5,4.5,2.0,4.0,1
+United Kingdom,A homemaker or stay-at-home parent,Sales and Customer Service Occupations,Male,Undergraduate degree (BA/BSc/other),White,45,2.59964685544956,1.0,4.0,5.0,2.0,4.5,5.0,1.0,4.5,1
+United Kingdom,Working full-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,39,2.7330979036330403,3.0,7.0,3.8333333333333335,3.5,4.0,4.0,2.0,4.0,0
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,51,2.0,1.0,3.0,3.9444444444444446,1.0,4.0,4.0,1.0,3.5,1
+United States,Working part-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),Asian,33,2.7330979036330403,0.0,1.0,4.333333333333333,1.0,2.5,5.0,3.0,4.0,1
+United States,A homemaker or stay-at-home parent,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,54,3.0,0.0,3.0,3.611111111111111,5.0,2.5,4.0,3.0,4.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Secondary education (e.g. GED/GCSE),White,49,1.73309790363304,1.0,2.0,3.2777777777777777,2.5,2.0,3.0,5.0,3.5,1
+United Kingdom,Working part-time,Sales and Customer Service Occupations,Female,Undergraduate degree (BA/BSc/other),White,62,2.7330979036330403,1.0,5.0,4.055555555555555,3.5,2.5,3.5,1.5,3.0,0
+United States,Working full-time,Elementary Occupations,Female,Undergraduate degree (BA/BSc/other),White,37,3.86654895181652,2.0,7.0,3.111111111111111,1.5,3.5,2.0,2.0,4.0,1
+United Kingdom,Working full-time,"Process, Plant and Machine Operatives",Female,Undergraduate degree (BA/BSc/other),White,38,3.7330979036330403,1.0,7.0,2.4444444444444446,2.0,3.5,4.0,1.5,4.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Male,High school diploma/A-levels,White,43,2.46619580726608,3.0,4.0,3.5,1.0,4.5,5.0,1.5,5.0,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,49,3.7330979036330403,0.0,3.0,3.7777777777777777,4.0,4.0,4.5,2.5,5.0,1
+United Kingdom,Working part-time,"Process, Plant and Machine Operatives",Male,Technical/community college,White,53,2.46619580726608,1.0,3.0,3.9444444444444446,3.0,1.0,3.5,3.5,4.0,1
+United Kingdom,Working full-time,"Caring, Leisure and Other Service Occupations",Female,Graduate degree (MA/MSc/MPhil/other),White,37,0.0,4.0,5.0,4.222222222222222,1.5,4.0,5.0,1.0,3.0,1
+United States,Unemployed and looking for work,"Caring, Leisure and Other Service Occupations",Male,High school diploma/A-levels,Asian,27,2.86654895181652,4.0,3.0,3.888888888888889,3.0,2.0,2.0,1.5,1.5,0
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,39,1.5996468554495602,1.0,6.0,2.5555555555555554,1.5,3.5,4.5,1.5,3.5,0
+United Kingdom,Working full-time,Professional Occupations,Male,Doctorate degree (PhD/other),White,28,2.46619580726608,1.0,2.0,1.3888888888888888,1.0,3.5,3.0,2.0,4.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,56,1.0,2.0,4.0,2.111111111111111,2.5,4.5,3.0,1.5,4.5,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,High school diploma/A-levels,White,44,1.73309790363304,0.0,1.0,2.9444444444444446,1.5,3.0,2.5,5.0,3.0,1
+United Kingdom,Other,Elementary Occupations,Male,Undergraduate degree (BA/BSc/other),White,74,3.46619580726608,1.0,6.0,3.0,4.5,4.5,4.0,2.5,2.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,High school diploma/A-levels,White,64,2.7330979036330403,4.0,5.0,4.777777777777778,1.0,3.5,5.0,5.0,4.0,0
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Undergraduate degree (BA/BSc/other),Asian,54,1.4661958072660801,0.0,6.0,2.2777777777777777,4.5,2.5,5.0,3.0,4.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,46,1.73309790363304,1.0,3.0,4.277777777777778,2.0,4.0,5.0,3.0,3.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,High school diploma/A-levels,White,50,1.4661958072660801,1.0,2.0,3.3333333333333335,3.5,4.0,3.5,3.0,5.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Technical/community college,White,67,2.59964685544956,4.0,3.0,2.888888888888889,4.0,3.5,4.0,3.0,3.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),White,50,2.86654895181652,0.0,3.0,1.7222222222222223,2.5,5.0,3.5,3.0,3.0,1
+United Kingdom,Working part-time,Elementary Occupations,Male,High school diploma/A-levels,Mixed,43,3.59964685544956,2.0,6.0,2.388888888888889,1.0,4.0,4.5,3.5,4.0,1
+United Kingdom,Working full-time,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),White,44,1.4661958072660801,1.0,1.0,3.111111111111111,4.0,4.0,4.0,2.0,5.0,1
+United States,Working full-time,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,44,2.0,2.0,3.0,4.777777777777778,1.5,1.0,4.5,2.5,4.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,Secondary education (e.g. GED/GCSE),White,27,1.73309790363304,1.0,3.0,3.2777777777777777,2.5,4.0,5.0,3.5,3.0,1
+United Kingdom,Unemployed and looking for work,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,40,3.0,3.0,7.0,4.055555555555555,1.5,2.0,2.5,2.0,4.0,1
+United Kingdom,Other,Other,Male,High school diploma/A-levels,White,29,-0.2669020963669599,2.0,4.0,1.5,1.0,4.5,2.5,1.5,5.0,1
+United Kingdom,Working part-time,Professional Occupations,Male,High school diploma/A-levels,White,37,0.5996468554495602,0.0,3.0,2.0555555555555554,4.0,2.5,4.5,3.0,4.0,1
+United Kingdom,Student,Student,Female,Graduate degree (MA/MSc/MPhil/other),White,37,1.4661958072660801,2.0,4.0,3.2777777777777777,3.0,4.0,4.5,3.0,4.5,1
+United Kingdom,Other,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,53,2.7330979036330403,0.0,3.0,4.055555555555555,1.0,1.5,5.0,4.0,4.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,57,2.59964685544956,1.0,5.0,3.0,5.0,4.5,5.0,4.5,4.5,1
+United Kingdom,Working part-time,Professional Occupations,Female,Technical/community college,White,54,2.46619580726608,1.0,4.0,3.5,4.0,2.0,2.5,1.0,4.5,1
+United Kingdom,Other,Other,Male,Undergraduate degree (BA/BSc/other),White,69,3.59964685544956,2.0,7.0,3.611111111111111,2.0,4.0,4.0,2.5,4.0,1
+United States,Other,Skilled Trades Occupations,Female,Undergraduate degree (BA/BSc/other),White,71,2.46619580726608,0.0,3.0,3.7222222222222223,2.5,5.0,3.5,4.0,3.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Female,High school diploma/A-levels,Black,46,2.86654895181652,1.0,5.0,4.333333333333333,2.0,2.0,4.0,4.0,4.0,0
+United States,Other,Associate Professional and Technical Occupations,Female,High school diploma/A-levels,White,48,3.7330979036330403,1.0,6.0,1.8888888888888888,5.0,3.0,2.0,2.5,4.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Technical/community college,White,37,1.4661958072660801,1.0,3.0,2.9444444444444446,3.0,4.0,5.0,1.5,4.5,1
+United Kingdom,Working full-time,"Managers, Directors and Senior Officials",Male,High school diploma/A-levels,White,51,3.46619580726608,4.0,5.0,3.8333333333333335,4.0,3.5,5.0,2.0,3.5,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Male,Undergraduate degree (BA/BSc/other),Mixed,69,2.59964685544956,1.0,4.0,2.6666666666666665,3.5,3.5,4.5,2.0,3.5,1
+United States,Retired,"Caring, Leisure and Other Service Occupations",Male,Undergraduate degree (BA/BSc/other),White,66,1.4661958072660801,1.0,6.0,3.111111111111111,5.0,4.5,4.0,1.0,4.0,1
+United States,Working full-time,Associate Professional and Technical Occupations,Male,Undergraduate degree (BA/BSc/other),White,49,2.46619580726608,1.0,6.0,2.8333333333333335,3.5,5.0,3.5,2.0,2.5,1
+United Kingdom,Other,Professional Occupations,Female,Undergraduate degree (BA/BSc/other),White,35,2.46619580726608,0.0,3.0,1.1666666666666667,2.0,4.0,3.5,4.0,3.5,1
+United States,Working part-time,Elementary Occupations,Male,Undergraduate degree (BA/BSc/other),White,26,1.8665489518165201,2.0,3.0,4.444444444444445,2.0,3.0,2.5,2.5,4.0,1
+United Kingdom,Student,Student,Female,Graduate degree (MA/MSc/MPhil/other),White,61,1.8665489518165201,1.0,5.0,3.2777777777777777,3.0,3.5,4.0,3.0,5.0,1
+United Kingdom,Retired,Associate Professional and Technical Occupations,Female,Technical/community college,White,52,2.46619580726608,0.0,3.0,4.111111111111111,3.0,1.5,3.0,4.0,4.0,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Male,Undergraduate degree (BA/BSc/other),White,26,0.46619580726608023,0.0,4.0,3.6666666666666665,1.0,2.5,4.0,3.5,3.0,1
+United Kingdom,Other,Other,Female,Undergraduate degree (BA/BSc/other),White,38,1.5996468554495602,0.0,2.0,3.9444444444444446,2.5,4.5,5.0,2.0,2.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,Undergraduate degree (BA/BSc/other),White,34,2.46619580726608,3.0,3.0,4.055555555555555,1.0,5.0,5.0,1.0,4.5,1
+United States,Working full-time,"Managers, Directors and Senior Officials",Female,Technical/community college,White,39,1.4661958072660801,0.0,1.0,1.3333333333333333,3.0,3.5,5.0,1.5,5.0,1
+United Kingdom,Working full-time,Administrative and Secretarial Occupations,Female,Secondary education (e.g. GED/GCSE),White,59,1.73309790363304,0.0,1.0,3.888888888888889,2.5,3.5,3.5,1.5,2.0,1
+United Kingdom,Working full-time,Associate Professional and Technical Occupations,Female,Undergraduate degree (BA/BSc/other),White,69,1.0,0.0,4.0,2.3333333333333335,3.5,5.0,4.0,2.5,3.5,1
+United States,Working full-time,Professional Occupations,Female,Technical/community college,White,39,2.46619580726608,2.0,3.0,3.0555555555555554,4.5,3.0,4.0,2.0,5.0,1
+United States,Working part-time,Professional Occupations,Female,Graduate degree (MA/MSc/MPhil/other),White,28,2.46619580726608,2.0,4.0,3.4444444444444446,4.0,4.5,5.0,5.0,5.0,1
+United States,Working full-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,28,3.7330979036330403,3.0,7.0,3.611111111111111,1.5,3.5,2.5,2.5,2.5,1
+United Kingdom,Working part-time,Professional Occupations,Male,Graduate degree (MA/MSc/MPhil/other),White,41,1.4661958072660801,0.0,0.0,3.2777777777777777,1.5,4.5,3.5,4.0,5.0,1
+United Kingdom,Unemployed and looking for work,Associate Professional and Technical Occupations,Male,High school diploma/A-levels,Mixed,45,1.8665489518165201,0.0,4.0,3.888888888888889,5.0,4.5,5.0,1.0,4.0,1

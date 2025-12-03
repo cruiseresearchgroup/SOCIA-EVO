@@ -1,0 +1,70 @@
+{
+  "passed": false,
+  "summary": "Most of the scaffolding is sound (syntax, imports, high\u2011level flow, calibration, evaluation), but there are several critical mismatches with the provided YAML specs and task requirements. In particular, the YAML loaders expect fields that do not exist (keying, traits, correct answers), writing_tasks.yaml is treated as non-empty despite being empty, and the BFI/NFC item handling does not align with the actual YAML schemas. These issues will cause runtime errors and prevent correct simulation of the intended instruments.",
+  "issues": [
+    {
+      "type": "implementation",
+      "severity": "critical",
+      "description": "Likert YAML loader assumes BFI/NFC YAML files contain per-item `keyed`, `trait`/`domain`, and uses `default_test_name` heuristics that do not match the actual YAML schemas (bfi10_items.yaml and nfc18_items.yaml). For BFI it enforces traits and keyed flags that are not present; for NFC it mislabels the test name, breaking downstream logic that expects `test_name == \"NFC\"`.",
+      "location": "Function `load_likert_test_from_yaml` and its calls in `build_test_bank`",
+      "solution": "Align the loader with the real YAML schemas:\n- For bfi10_items.yaml:\n  - Read `yaml_data['id']` as the test name (`bfi_10`), not override with `\"BFI\"`.\n  - Provide a separate mapping inside the code from item id \u2192 Big Five domain and keyed direction (e.g., a hardcoded dict for the 10 items), since the YAML does not carry this.\n  - Remove the condition `if default_test_name.lower() == \"bfi\"` and instead check against the actual test id or a passed-in mode flag.\n- For nfc18_items.yaml:\n  - Use `yaml_data['id']` as the test name (`nfc_short_18`) and then map that to a logical id like `\"NFC\"` in your logic (or accept the real id as the key).\n  - Do not enforce presence of `keyed` in the YAML; instead, hardcode a list of reverse-keyed item ids for the 18 items (from the validated NFC-short form) and set `keyed = -1` for those and `+1` otherwise.\n- Remove or relax the generic validation that throws errors when `default_test_name.lower() in {\"bfi\", \"nfc\"}` but `keyed` is not in {-1, 1} or trait/domain is missing; instead, build these fields from internal mappings when the YAML does not provide them."
+    },
+    {
+      "type": "implementation",
+      "severity": "critical",
+      "description": "CRT YAML loader requires `correct_answer`/`answer`/`solution` fields that do not exist in crt2_items.yaml and bcrt_items.yaml (the provided schemas only have `id` and `question`). This will raise a ValueError for every CRT item and prevent test bank construction.",
+      "location": "Function `load_crt_test_from_yaml`",
+      "solution": "Provide correct answers and lure answers from code-side lookup rather than expecting them in the YAML, or extend the actual YAMLs accordingly. Concretely:\n- Create a dict like `CRT2_CORRECT = {\"crt2_q1\": \"2\", ...}` and `BCRT_CORRECT = {\"bcrt_q1\": \"400\", ...}` in code.\n- In `load_crt_test_from_yaml`, after reading `item_id` and `text`, look up `correct_answer = CORRECT_MAP[item_id]` instead of reading from YAML. Remove the `ValueError` that triggers when `correct_answer` is missing in the YAML.\n- Optionally still allow overriding via YAML if fields are present, but default to code-provided answers to match the provided schemas."
+    },
+    {
+      "type": "implementation",
+      "severity": "critical",
+      "description": "Writing tasks loader assumes writing_tasks.yaml is a non-empty YAML file with an items/tasks list, but the provided schema is effectively empty (`data_type: \"empty\"`, `raw_text: \"\"`). `yaml.safe_load` on an empty file returns `None`, which leads to a ValueError in `_coerce_items_list` requiring an 'items' list. Combined with the required-file check in `build_test_bank`, this will break execution.",
+      "location": "Functions `_load_yaml_items_file`, `_coerce_items_list`, `load_writing_tasks_from_yaml`, and `build_test_bank`",
+      "solution": "Handle the known-empty writing_tasks.yaml case gracefully:\n- In `_load_yaml_items_file`, if `yaml.safe_load(f)` returns `None` and the filename is `\"writing_tasks.yaml\"`, return an empty list instead of None.\n- In `_coerce_items_list`, if `yaml_data is None` and filename is writing_tasks.yaml, return an empty list without raising.\n- In `build_test_bank`, allow for the possibility that `load_writing_tasks_from_yaml` returns an empty list and simply not add any writing items (or log a warning). This will let the rest of the simulation run while still satisfying the requirement to load the file."
+    },
+    {
+      "type": "logic",
+      "severity": "major",
+      "description": "Downstream logic relies on specific `test_name` values (e.g., `\"BFI\"`, `\"NFC\"`, and checks in Evaluator and PersonaSimulator), but actual YAML `id`s differ (`\"bfi_10\"`, `\"nfc_short_18\"`). The current loader sets `test_name` to `default_test_name` only, which is hardcoded to `\"BFI\"` and `\"NFC\"` in `build_test_bank`, but this disassociates it from the canonical instrument identifiers and may cause confusion when merging or adding additional instruments.",
+      "location": "`load_likert_test_from_yaml`, `build_test_bank`, `PersonaSimulator._simulate_item`, `Evaluator`",
+      "solution": "Standardize test naming and make it explicit:\n- Decide on canonical test ids used in code (e.g., `test_name=\"BFI\"` and `\"NFC\"`) and consistently use them across the simulator and evaluator.\n- When loading YAML, read the original `yaml_data['id']` into a separate field in TestItem.metadata (e.g., `metadata['instrument_id']`) but set `test_name` to the canonical label (`\"BFI\"`, `\"NFC\"`) so the existing checks continue to work.\n- Document this mapping so that future YAMLs can be aligned without breaking the simulation logic."
+    },
+    {
+      "type": "logic",
+      "severity": "major",
+      "description": "The NFC score range is validated as 1\u20135, but the sample data show NFC_Total ranging roughly 3.0\u20134.6 (it is already a 1\u20135-like composite), and the prompt builder maps NFC directly via `_score_to_9_level`. This is acceptable, but there is an implicit assumption that NFC_Total is on the same [1,5] scale as BFI domains. If NFC_Total ever deviates, this will raise or mis-map levels.",
+      "location": "Function `build_network_and_agents` (NFC range check) and `PersonaPromptBuilder.build_nfc_prompt`",
+      "solution": "Confirm and document the scaling of NFC_Total. If NFC_Total is indeed 1\u20135, leave as is but add an explanatory comment; otherwise:\n- Normalize NFC_Total to 1\u20135 before calling `_score_to_9_level`, e.g., via min\u2013max or z-score mapping.\n- Relax the range check to a wider interval or derive bounds from the data (e.g., assert only that it is within a plausible metric range) to avoid spurious ValueErrors."
+    },
+    {
+      "type": "implementation",
+      "severity": "major",
+      "description": "The BFI/NFC item scoring for the pseudo-LLM relies on each Likert item\u2019s `trait` attribute matching keys in `config.bfi_columns` or `'nfc'`. However, since the YAMLs do not contain trait/domain information and the current loader does not inject it correctly, this will almost certainly raise `ValueError` for unknown or missing traits during `_simulate_item`.",
+      "location": "Function `PersonaSimulator._simulate_item` (Likert branch) and how `TestItem.trait` is set in `load_likert_test_from_yaml`",
+      "solution": "After fixing item \u2192 trait mappings as per the first critical issue:\n- Ensure that for all BFI items, `item.trait` is in `config.bfi_columns` and `item.test_name == \"BFI\"`.\n- Ensure that for all NFC items, `item.trait == \"nfc\"` and `item.test_name == \"NFC\"`.\n- Consider adding a one-time validation step after building the TestBank that checks these invariants and raises a clear error if any item is misconfigured."
+    },
+    {
+      "type": "logic",
+      "severity": "minor",
+      "description": "Cronbach\u2019s alpha computation drops any persona with any missing item response (`dropna(axis=0, how='any')`), which may be overly strict and can result in very small samples, especially when using real LLMs that may produce unparsable Likert responses.",
+      "location": "Function `Evaluator.compute_metrics`, response_consistency section",
+      "solution": "Consider a less strict approach, such as:\n- Dropping columns (items) with excessive missingness, and dropping rows with missingness above a threshold, or\n- Imputing missing Likert responses (e.g., with item means) before computing alpha.\nDocument the chosen approach in comments."
+    },
+    {
+      "type": "error_handling",
+      "severity": "minor",
+      "description": "The OpenAI client wrapper (`call_gpt5_with_responses_api` and `RealLLMClient.answer_block`) catches API errors and parsing errors but falls back to returning the entire raw object as a string if extraction fails. This can lead to confusing `response_text` and will then be interpreted as literal text by parsers, often defaulting to mid-scale Likert (3).",
+      "location": "Functions `call_gpt5_with_responses_api`, `RealLLMClient._parse_answers`",
+      "solution": "Improve robustness:\n- Log or store an explicit error flag in the returned mapping (e.g., `\"error\": true` in metadata) when parsing fails.\n- When parsing fails and there are multiple items, consider returning empty strings for each item and let downstream code handle them explicitly (e.g., mark them as missing) instead of using the full raw payload as the response."
+    }
+  ],
+  "verification_details": {
+    "syntax_check": true,
+    "imports_check": true,
+    "implementation_check": false,
+    "logic_check": false,
+    "error_handling_check": true,
+    "performance_check": true
+  }
+}

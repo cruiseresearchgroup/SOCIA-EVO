@@ -1,0 +1,72 @@
+id: nfc_short_18
+name: Need for Cognition Scale - Short Form (18 items)
+instructions: >
+  For each of the statements below, please indicate to what extent the
+  statement is characteristic of you.
+  1 = extremely uncharacteristic; 2 = somewhat uncharacteristic;
+  3 = uncertain; 4 = somewhat characteristic;
+  5 = extremely characteristic.
+response_scale:
+  min: 1
+  max: 5
+  labels:
+    1: extremely uncharacteristic
+    2: somewhat uncharacteristic
+    3: uncertain
+    4: somewhat characteristic
+    5: extremely characteristic
+
+items:
+  - id: 1
+    text: "I would prefer complex to simple problems."
+
+  - id: 2
+    text: "I like to have the responsibility of handling a situation that requires a lot of thinking."
+
+  - id: 3
+    text: "Thinking is not my idea of fun."
+
+  - id: 4
+    text: "I would rather do something that requires little thought than something that is sure to challenge my thinking abilities."
+
+  - id: 5
+    text: "I try to anticipate and avoid situations where there is a likely chance I will have to think in depth about something."
+
+  - id: 6
+    text: "I find satisfaction in deliberating hard and for long hours."
+
+  - id: 7
+    text: "I only think as hard as I have to."
+
+  - id: 8
+    text: "I prefer to think about small, daily projects rather than long-term ones."
+
+  - id: 9
+    text: "I like tasks that require little thought once I've learned them."
+
+  - id: 10
+    text: "The idea of relying on thought to make my way to the top appeals to me."
+
+  - id: 11
+    text: "I really enjoy a task that involves coming up with new solutions to problems."
+
+  - id: 12
+    text: "Learning new ways to think doesn't excite me very much."
+
+  - id: 13
+    text: "I prefer my life to be filled with puzzles that I must solve."
+
+  - id: 14
+    text: "The notion of thinking abstractly is appealing to me."
+
+  - id: 15
+    text: "I would prefer a task that is intellectual, difficult, and important to one that is somewhat important but does not require much thought."
+
+  - id: 16
+    text: "I feel relief rather than satisfaction after completing a task that required a lot of mental effort."
+
+  - id: 17
+    text: "It's enough for me that something gets the job done; I don't care how or why it works."
+
+  - id: 18
+    text: "I usually end up deliberating about issues even when they do not affect me personally."
