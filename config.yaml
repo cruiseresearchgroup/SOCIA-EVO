@@ -42,7 +42,12 @@ agents:
     enabled: true
     prompt_template: "templates/task_understanding_prompt.txt"
     output_format: "json"
-  
+
+  task_understanding_odd:
+    enabled: true
+    prompt_template: "templates/task_understanding_blueprint_consolidated_prompt.txt"
+    output_format: "json"
+
   data_analysis:
     enabled: true
     prompt_template: "templates/data_analysis_prompt.txt"

@@ -722,11 +722,11 @@ def run_data_analysis_test(
                 
                 # Generate code
                 state["generated_code"] = agents["code_generation"].process(
-            task_spec=task_spec,
-            data_analysis=None,  # Not used in odd mode
-            model_plan=None,     # Not used in odd mode
+                    task_spec=task_spec,
+                    data_analysis=None,  # Not used in odd mode
+                    model_plan=None,     # Not used in odd mode
                     feedback=state["feedback"],  # Will be None in first iteration
-            data_path=data_path,
+                    data_path=data_path,
                     previous_code=prev_code,
                     historical_fix_log=historical_fix_log,
                     mode=args.mode,

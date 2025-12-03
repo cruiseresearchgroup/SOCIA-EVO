@@ -462,7 +462,7 @@ class CodeGenerationAgent(BaseAgent):
             List of issues found
         """
         self.logger.info("Performing comprehensive code quality check")
-        
+
         if mode in ("odd", "persona"):
             # Extract blueprint from task_spec (excluding file_summaries)
             if "data_analysis_result" in task_spec:
