@@ -40,6 +40,9 @@ class BaseAgent(ABC):
         else:
             self.config = config
         
+        # Debug configuration to help diagnose issues with agent initialization
+        self.logger.debug(f"Config type: {type(self.config)}, value: {self.config}")
+        
         self.prompt_template = self._load_prompt_template()
         
         # Cache effective max tokens to avoid repeated computation
