@@ -18,6 +18,7 @@ from agents.code_verification.agent import CodeVerificationAgent
 from agents.simulation_execution.agent import SimulationExecutionAgent
 from agents.result_evaluation.agent import ResultEvaluationAgent
 from agents.feedback_generation.agent import FeedbackGenerationAgent
+from agents.feedback_generation_odd.agent import FeedbackGenerationOddAgent
 from agents.iteration_control.agent import IterationControlAgent
 
 class AgentContainer(containers.DeclarativeContainer):
@@ -54,7 +55,7 @@ class AgentContainer(containers.DeclarativeContainer):
             "task_understanding": {"prompt_template": "templates/task_understanding_prompt.txt", "output_format": "json"},
             "task_understanding_odd": {"prompt_template": "templates/task_understanding_prompt.txt", "output_format": "json"},
             "data_analysis": {"prompt_template": "templates/data_analysis_prompt.txt", "output_format": "json"},
-            "data_analysis_odd": {"prompt_template": "templates/data_analysis_prompt.txt", "output_format": "json"},
+            "data_analysis_odd": {"prompt_template": "templates/data_analysis_odd_prompt.txt", "output_format": "json"},
             "model_planning": {"prompt_template": "templates/model_planning_prompt.txt", "output_format": "json"},
             "code_generation": {"prompt_template": "templates/code_generation_prompt.txt", "output_format": "python"},
             "code_generation_odd": {"prompt_template": "templates/code_generation_prompt.txt", "output_format": "python"},
@@ -62,6 +63,7 @@ class AgentContainer(containers.DeclarativeContainer):
             "simulation_execution": {"prompt_template": "templates/simulation_execution_prompt.txt", "output_format": "json"},
             "result_evaluation": {"prompt_template": "templates/result_evaluation_prompt.txt", "output_format": "json"},
             "feedback_generation": {"prompt_template": "templates/feedback_generation_prompt.txt", "output_format": "json"},
+            "feedback_generation_odd": {"prompt_template": "templates/feedback_generation_prompt.txt", "output_format": "json"},
             "iteration_control": {"prompt_template": "templates/iteration_control_prompt.txt", "output_format": "json"}
         }
         return defaults.get(agent_name, {})
@@ -126,6 +128,11 @@ class AgentContainer(containers.DeclarativeContainer):
         config=config.agents.feedback_generation
     )
     
+    feedback_generation_odd_agent = providers.Factory(
+        FeedbackGenerationOddAgent,
+        config=config.agents.feedback_generation_odd
+    )
+    
     iteration_control_agent = providers.Factory(
         IterationControlAgent,
         config=config.agents.iteration_control
@@ -145,6 +152,7 @@ class AgentContainer(containers.DeclarativeContainer):
             "simulation_execution": simulation_execution_agent,
             "result_evaluation": result_evaluation_agent,
             "feedback_generation": feedback_generation_agent,
+            "feedback_generation_odd": feedback_generation_odd_agent,
             "iteration_control": iteration_control_agent
         }
     ) 

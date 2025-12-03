@@ -4,10 +4,12 @@ Utilities for loading and analyzing data for simulations.
 
 import os
 import json
-import pandas as pd
-import numpy as np
-from typing import Dict, Any, List, Union, Optional, Tuple
 import pickle
+from typing import Dict, Any, List, Union, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import yaml
 
 class DataLoader:
     """
@@ -76,6 +78,29 @@ class DataLoader:
         with open(full_path, 'rb') as f:
             data = pickle.load(f)
         self.loaded_data[file_path] = data
+        return data
+
+    def load_yaml(self, file_path: str, return_raw: bool = False) -> Union[Dict[str, Any], List[Any], Tuple[Any, str]]:
+        """
+        Load data from a YAML file, optionally returning the raw text as well.
+        
+        Args:
+            file_path: Path to the YAML file
+            return_raw: If True, return a tuple of (parsed_data, raw_text)
+        
+        Returns:
+            Parsed YAML content, or a tuple of (parsed content, raw text) when return_raw is True
+        """
+        full_path = os.path.join(self.data_path, file_path)
+        with open(full_path, 'r', encoding='utf-8') as f:
+            raw_text = f.read()
+        try:
+            data = yaml.safe_load(raw_text)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Error parsing YAML file {file_path}: {e}") from e
+        self.loaded_data[file_path] = data
+        if return_raw:
+            return data, raw_text
         return data
     
     def get_data(self, file_path: str) -> Union[pd.DataFrame, Dict[str, Any]]:

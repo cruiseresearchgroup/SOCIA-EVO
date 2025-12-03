@@ -5,8 +5,10 @@ DataAnalysisAgent: Analyzes input data to extract patterns and calibration param
 import logging
 import os
 import json
-import pandas as pd
 from typing import Dict, Any, List, Optional, Tuple, Union
+
+import pandas as pd
+import yaml
 
 from agents.base_agent import BaseAgent
 from utils.data_loader import DataLoader
@@ -32,7 +34,7 @@ class DataAnalysisAgent(BaseAgent):
         self,
         task_description: str,
         task_data: Optional[Dict[str, Any]] = None,
-        mode: str = "full",
+        mode: str = "persona",
         blueprint: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
@@ -74,8 +76,13 @@ class DataAnalysisAgent(BaseAgent):
                 "simulation_focus": simulation_focus,
                 "data_folder": data_folder,
                 "data_files": data_files,
-                "evaluation_metrics": evaluation_metrics
+                "evaluation_metrics": evaluation_metrics,
             }
+            # In persona mode, also surface additional high-level fields
+            # from the task file so they can participate in blueprint generation.
+            if mode == "persona":
+                task_spec["tests"] = task_data.get("tests", {}) or {}
+                task_spec["persona_specification"] = task_data.get("persona_specification", {}) or {}
             
             # Get data path from task_spec
             data_path = data_folder
@@ -92,6 +99,10 @@ class DataAnalysisAgent(BaseAgent):
                 "data_files": {},
                 "evaluation_metrics": {}
             }
+            # Ensure persona mode still has the expected keys, even without a task file
+            if mode == "persona":
+                task_spec["tests"] = {}
+                task_spec["persona_specification"] = {}
             data_path = ""
         
         # Check if data path exists (only if data_path is provided)
@@ -104,7 +115,20 @@ class DataAnalysisAgent(BaseAgent):
             self.logger.info(f"Successfully verified data path exists: {data_path}")
         
         # Capture task description for semantic summaries
-        task_description_for_analysis = task_spec.get("description", task_description)
+        if mode == "persona":
+            # In persona mode, use the rich task specification (including
+            # persona/tests/etc.) as the "description" for the LLM, but exclude
+            # raw data location fields that are not semantically meaningful.
+            task_spec_for_prompt = {
+                key: value
+                for key, value in task_spec.items()
+                if key not in ("data_folder", "data_files")
+            }
+            # _build_prompt will JSON-encode dict values, so we can pass the
+            # structure directly here.
+            task_description_for_analysis = task_spec_for_prompt
+        else:
+            task_description_for_analysis = task_spec.get("description", task_description)
         
         # Skip data analysis if no data path provided
         if not data_path:
@@ -174,21 +198,6 @@ class DataAnalysisAgent(BaseAgent):
         # # Create context about simulation calibration
         # calibration_context = self._create_calibration_context(task_spec, {})
         
-        # Build comprehensive prompt
-        analysis_prompt = self._build_analysis_prompt(
-            task_description=task_description_for_analysis,
-            data_schemas=self.schemas
-            # metrics_description=metrics_description,
-            # calibration_context=calibration_context
-        )
-        
-        # Call LLM to analyze data and provide insights
-        self.logger.info("Calling LLM to analyze data and provide calibration insights")
-        llm_response = self._call_llm(analysis_prompt)
-        
-        # Parse LLM response to extract structured analysis and recommendations
-        analysis_results = self._parse_llm_analysis(llm_response)
-        
         # Extract and format file_semantic_summary from schemas
         formatted_file_summaries = []
         for file_name, schema in self.schemas.items():
@@ -202,21 +211,54 @@ class DataAnalysisAgent(BaseAgent):
             }
             formatted_file_summaries.append(formatted_summary)
         
-        # Combine all information into the data analysis result
-        data_analysis_result = {
-            "overall_simulation_design": analysis_results.get("overall_simulation_design", {}),
-            "scale_granularity": analysis_results.get("scale_granularity", {}),
-            "agent_archetypes": analysis_results.get("agent_archetypes", {}),
-            "interaction_topology": analysis_results.get("interaction_topology", {}),
-            "information_propagation": analysis_results.get("information_propagation", {}),
-            "exogenous_signals": analysis_results.get("exogenous_signals", []),
-            "action_decision_policy": analysis_results.get("action_decision_policy", {}),
-            "holdout_plan": analysis_results.get("holdout_plan", {}),
-            "simulation_evaluation": analysis_results.get("simulation_evaluation", {}),
-            "calibratable_parameters": analysis_results.get("calibratable_parameters", []),
-        }
+        # --------------------------------------------------
+        # Build data_analysis_result
+        # --------------------------------------------------
+        if mode == "persona":
+            # Persona mode: do NOT call the LLM for blueprint. Instead,
+            # use the original task file content (task_data) directly as the
+            # blueprint, excluding raw data-location fields. Downstream code
+            # generation and feedback will operate on this persona/test spec.
+            if task_data:
+                self.logger.info(
+                    "Persona mode: building data_analysis_result from task_data "
+                    "excluding 'data_folder' and 'data_files'"
+                )
+                data_analysis_result = {
+                    key: value
+                    for key, value in task_data.items()
+                    if key not in ("data_folder", "data_files")
+                }
+            else:
+                self.logger.warning(
+                    "Persona mode enabled but no task_data provided; using empty data_analysis_result"
+                )
+                data_analysis_result = {}
+        else:
+            # Non-persona modes: call the LLM to analyse data and map the response
+            # into the standard 10-key schema.
+            analysis_prompt = self._build_analysis_prompt(
+                task_description=task_description_for_analysis,
+                data_schemas=self.schemas
+            )
+            self.logger.info("Calling LLM to analyze data and provide calibration insights")
+            llm_response = self._call_llm(analysis_prompt)
+            analysis_results = self._parse_llm_analysis(llm_response)
+            
+            data_analysis_result = {
+                "overall_simulation_design": analysis_results.get("overall_simulation_design", {}),
+                "scale_granularity": analysis_results.get("scale_granularity", {}),
+                "agent_archetypes": analysis_results.get("agent_archetypes", {}),
+                "interaction_topology": analysis_results.get("interaction_topology", {}),
+                "information_propagation": analysis_results.get("information_propagation", {}),
+                "exogenous_signals": analysis_results.get("exogenous_signals", []),
+                "action_decision_policy": analysis_results.get("action_decision_policy", {}),
+                "holdout_plan": analysis_results.get("holdout_plan", {}),
+                "simulation_evaluation": analysis_results.get("simulation_evaluation", {}),
+                "calibratable_parameters": analysis_results.get("calibratable_parameters", []),
+            }
         
-        # Add data analysis result to task_spec
+        # Add data analysis result and file summaries to task_spec
         task_spec["data_analysis_result"] = data_analysis_result
         task_spec["file_summaries"] = formatted_file_summaries
         
@@ -290,6 +332,8 @@ class DataAnalysisAgent(BaseAgent):
                 return self._infer_csv_schema(file_path, file_name)
             elif file_extension == '.json':
                 return self._infer_json_schema(file_path, file_name)
+            elif file_extension in {'.yaml', '.yml'}:
+                return self._infer_yaml_schema(file_path, file_name)
             else:
                 self.logger.info(f"Unsupported file type for schema inference: {file_extension}")
                 return {"type": "object", "additionalProperties": True}
@@ -400,6 +444,53 @@ class DataAnalysisAgent(BaseAgent):
         self.logger.info(f"JSON schema generated for {file_name}: {data_type} with {data_length} items")
         return schema
     
+    def _infer_yaml_schema(self, file_path: str, file_name: str) -> Dict[str, Any]:
+        """
+        Infer schema from YAML file by examining its full content.
+        """
+        self.logger.info(f"Analyzing YAML structure for {file_name}")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            raw_text = f.read()
+        try:
+            data = yaml.safe_load(raw_text)
+        except yaml.YAMLError as e:
+            self.logger.error(f"Error parsing YAML file {file_name}: {e}")
+            return {
+                "file_type": "yaml",
+                "data_type": "unparseable",
+                "raw_text": raw_text,
+                "sample_data": raw_text
+            }
+        
+        if data is None:
+            return {
+                "file_type": "yaml",
+                "data_type": "empty",
+                "raw_text": raw_text,
+                "sample_data": ""
+            }
+        
+        schema: Dict[str, Any] = {
+            "file_type": "yaml",
+            "raw_text": raw_text
+        }
+        
+        if isinstance(data, dict):
+            schema["data_type"] = "object"
+            schema["length"] = len(data)
+            schema["sample_data"] = dict(list(data.items())[:10])
+            schema["keys"] = list(data.keys())
+        elif isinstance(data, list):
+            schema["data_type"] = "array"
+            schema["length"] = len(data)
+            schema["sample_data"] = data[:10]
+        else:
+            schema["data_type"] = type(data).__name__
+            schema["sample_data"] = data
+        
+        self.logger.info(f"YAML schema generated for {file_name}: {schema.get('data_type')} with length {schema.get('length', 'n/a')}")
+        return schema
+    
     def _list_available_files(self, data_path: str) -> List[Dict[str, str]]:
         """List available files in the data directory."""
         result = []
@@ -429,6 +520,8 @@ class DataAnalysisAgent(BaseAgent):
                 elif file.endswith('.py'):
                     self.logger.info(f"Found Python file: {full_path}")
                     result.append({"path": rel_path, "type": "py"})
+                elif file.endswith('.yaml') or file.endswith('.yml'):
+                    result.append({"path": rel_path, "type": "yaml"})
         
         self.logger.info(f"Total files found: {len(result)} in path {data_path}")
         for f in result:
@@ -658,121 +751,21 @@ class DataAnalysisAgent(BaseAgent):
         
         file_summaries_text = "\n\n".join(file_summaries)
         
-        prompt = f"""
-You are an expert data scientist and simulation modeler. Your task is to analyze data for designing a simulation model. Overall simulation design is: automatically generate and calibrate the simulator. This requires defining the classes and functions within the simulator, as well as how these classes and functions interact. Next, define the parameters used by these functions and classes. The inputs are the data together with the initialization of parameters. The execution involves tuning parameters through data calibration. The final outputs are the calibrated parameters and the evaluation results on the validation dataset.
-
-TASK DESCRIPTION:
-{task_description}
-
-DATA SUMMARIES:
-{file_summaries_text}
-
-Based on the provided task description and data summaries, please analyze the data and provide guidelines for simulation model construction.
-
-Your analysis must cover:
-1) Overall simulation design: State the primary objective of the simulation. Specify how the simulation initializes from inputs. Specify the execution of the simulation (should involve tuning parameters through data calibration). Specify what artifacts it outputs after execution (should be the calibrated parameters and the evaluation results on the validation dataset).
-2) Scale & Granularity: Specify time step, spatial resolution (or explicitly "non-spatial"), and population size (agents), with brief rationale.
-3) Agent Archetypes: Define the agent unit and roles; list static attributes and dynamic states; explain how the input data construct static attributes and how dynamic states update from data-derived signals.
-4) Interaction Topology: Describe how agents interact; explain how to build interactions (layers/edges/protocols) from the input data.
-5) Information propagation: Clarify whether information diffusion exists, its topology/mechanism, and how to parameterize/drive it using inputs.
-6) Exogenous Signals: Identify any external signals/interventions, how they are derived from inputs, and how they affect agent decisions.
-7) Action Decision Policy: Describe actions taken by agents and the decision policy mapping observations/signals to actions; include role-specific inputs and policy forms.
-8) Holdout: Propose a training / validation data split plan if needed. For time series, prefer first 80% of days as train and last 20% as validation; state exact ranges or the rule to compute them.
-9) Simulation Evaluation: Define evaluation metrics and how to compare simulator output artifacts against validation ground truth.
-10) Calibratable Parameters: List tunable parameters with bounds/ranges that will be used for configuring the simulation.
-
-Provide your response in the following JSON format (valid JSON only, no extra text):
-
-{{
-  "overall_simulation_design": {{
-    "objective": "what is this simulation about",
-    "initialization": "How the simulation starts from inputs (states, seeds, signals)",
-    "execution": "How to tune parameters through data calibration",
-    "outputs": ["List of simulation artifacts to produce (e.g., the calibrated parameters and the evaluation results on the validation dataset)"]
-  }},
-  "scale_granularity": {{
-    "time_step": "seconds|minutes|hours|days",
-    "spatial_resolution": "non-spatial|grid|POI|road network|other:<...>",
-    "population_size": "integer or description tied to data",
-    "rationale": "Why these scales are appropriate"
-  }},
-  "agent_archetypes": {{
-    "unit": "e.g., resident",
-    "roles": ["role1", "role2"],
-    "static_attributes": ["list of static fields mapped from inputs"],
-    "dynamic_states": ["list of dynamic states tracked over time"],
-    "construction_from_data": "How input data map to static attributes (IDs, demographics, risk, initial states, etc.)",
-    "update_from_data": "How dynamic states update using observations/signals derived from data"
-  }},
-  "interaction_topology": {{
-    "topology": "graph|hybrid|broadcast|market|spatial",
-    "layers": ["e.g., family", "work_school", "community", "all"],
-    "protocol": "p2p on layers|group broadcast|platform-level rules",
-    "construction_from_data": "How to build edges/layers from social_network / counts / metadata"
-  }},
-  "information_propagation": {{
-    "exists": true,
-    "topology": "layer(s) used for diffusion",
-    "mechanism": "e.g., neighbor fraction, threshold, broadcast rate",
-    "construction_from_data": "Which file/field drives info intensity or schedule",
-    "parameters": {{"names": ["e.g., info_rate", "neighbor_weight"], "notes": "how to estimate or tune"}}
-  }},
-  "exogenous_signals": [
-    {{
-      "name": "signal_name",
-      "construction_from_data": "which file/field defines or constrains it",
-      "observability": "which roles can observe; delay/noise if any",
-      "effect_on_agents": "how it enters decision function",
-      "bounds": "[low, high]"
-    }}
-  ],
-  "action_decision_policy": {{
-    "by_role": {{
-      "role1": {{
-        "inputs": ["observations/signals used by this role"],
-        "policy_form": "e.g., logistic with peer/self/policy terms; thresholds; inertia",
-        "parameters": ["list of per-role parameters"]
-      }},
-      "role2": {{
-        "inputs": ["..."],
-        "policy_form": "...",
-        "parameters": ["..."]
-      }}
-    }}
-  }},
-  "holdout_plan": {{
-    "method": "temporal_holdout|rolling_backtest",
-    "train_range": "e.g., day 0–23 or first 80% rule",
-    "validation_range": "e.g., day 24–29 or last 20% rule",
-    "notes": "any agent-level holdout or rolling details"
-  }},
-  "simulation_evaluation": {{
-    "metrics": [
-      {{"name": "RMSE_aggregate", "definition": "RMSE between simulated and observed daily adoption rates"}},
-      {{"name": "MAE_aggregate", "definition": "MAE between curves"}},
-      {{"name": "Brier", "definition": "Brier score for per-agent probabilities if available"}},
-      {{"name": "TransitionFit", "definition": "error on P10/P11/P01 rates vs observed"}}
-    ],
-    "comparison_method": "how to compute metrics on validation set and report (tables/plots)"
-  }},
-  "calibratable_parameters": [
-    {{
-      "name": "influence_weight_family|work_school|community",
-      "range_bounds": "[0,1] or rationale",
-      "source": "constrained by network layers / train_data dynamics",
-      "notes": "tie to topology and adoption speed"
-    }},
-    {{
-      "name": "threshold|inertia|policy_weight|info_rate|memory_decay",
-      "range_bounds": "[0,1] or problem-appropriate bounds",
-      "source": "estimated from transitions; refined via optimization",
-      "notes": "regularize to avoid overfitting"
-    }}
-  ]
-}}
-
-Return only valid JSON that can be parsed. Do not include any other explanation or text outside the JSON.
-"""
+        # Build prompt from configured template; fallback to odd prompt file if missing
+        if not self.prompt_template:
+            try:
+                template_path = os.path.join("templates", "data_analysis_odd_prompt.txt")
+                self.logger.warning(f"No prompt template configured; falling back to {template_path}")
+                with open(template_path, 'r') as f:
+                    self.prompt_template = f.read()
+            except Exception as e:
+                self.logger.error(f"Error loading fallback prompt template: {e}")
+                self.prompt_template = ""
+        
+        prompt = self._build_prompt(
+            task_description=task_description,
+            file_summaries_text=file_summaries_text
+        )
         return prompt
     
     def _parse_llm_analysis(self, llm_response: str) -> Dict[str, Any]:
@@ -850,9 +843,12 @@ Return only valid JSON that can be parsed. Do not include any other explanation 
         Use LLM to generate a concise semantic metadata summary based on schema information.
         The summary is stored directly in the schema under 'file_semantic_summary' key.
         """
-        # Extract sample data from schema
-        sample_data = schema.get("sample_data", [])
-        sample_str = json.dumps(sample_data, indent=2) if sample_data else "No sample data available"
+        # Extract sample data or raw text from schema
+        if schema.get("file_type") == "yaml" and schema.get("raw_text"):
+            sample_str = schema["raw_text"]
+        else:
+            sample_data = schema.get("sample_data", [])
+            sample_str = json.dumps(sample_data, indent=2) if sample_data else "No sample data available"
         
         prompt = (
             f"Task Description: {task_description}\n\n"

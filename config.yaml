@@ -9,7 +9,7 @@ llm:
 # Available LLM providers configuration
 llm_providers:
   openai:
-    model: "gpt-5"  # options: gpt-4.1, gpt-4o, gpt-4-turbo, gpt-3.5-turbo, gpt-4.1-2025-04-14, etc.
+    model: "gpt-5.1"  # options: gpt-4.1, gpt-4o, gpt-4-turbo, gpt-3.5-turbo, gpt-4.1-2025-04-14, etc.
     temperature: 0.7
     use_responses_api: true
     max_output_tokens: 10000
@@ -51,9 +51,9 @@ agents:
 
   data_analysis_odd:
     enabled: true
-    prompt_template: "templates/data_analysis_odd_prompt.txt"
+    prompt_template: "templates/data_analysis_odd_prompt_personality.txt"
     output_format: "json"
-    supported_data_types: ["csv", "json", "geojson", "shapefile"]
+    supported_data_types: ["csv", "json", "geojson", "shapefile", "yaml"]
   
   model_planning:
     enabled: true

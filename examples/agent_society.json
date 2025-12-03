@@ -17,8 +17,8 @@
   },
   "evaluation_metrics": {
     "Preference Estimation": {
-      "description": "The travel distance between each consecutive decision step within a trajectory is collected. This metric evaluates the spatial pattern of an individual’s activities by measuring the distance between two consecutive locations in a trajectory.",
-      "metric": "1−Mean Absolute Error (MAE) of predicted star ratings, indicating deviation from actual user preferences."
+      "description": "The preference estimation is calculated based on the star rating accuracy.",
+      "metric": "1 - MAE of star ratings, indicating the deviation from actual preferences."
     },
     "Review Generation": {
       "description": "The review generation is calculated based on the review metrics.",
