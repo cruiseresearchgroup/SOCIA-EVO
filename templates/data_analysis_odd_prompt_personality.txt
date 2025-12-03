@@ -1,0 +1,21 @@
+You are an expert data scientist and simulation modeler. 
+Your task is to analyze data for designing a **psychological trait–driven LLM persona experiment simulator**.
+
+This simulator is NOT a traditional spatial or interaction-heavy multi-agent simulation.
+Instead, it is a **large-scale virtual subject experiment platform**:
+- Each persona is a virtual “subject” with static trait parameters.
+- The “simulation” consists of administering tests/tasks via LLM calls, collecting responses, scoring them, and evaluating:
+  - trait fidelity,
+  - behavioral alignment,
+  - response consistency.
+
+TASK SPEC (EXCLUDING RAW DATA PATHS):
+{task_description}
+
+DATA SUMMARIES:
+{file_summaries_text}
+
+Please design a suitable blueprint based on the task files , which allows the downstream LLM to generate the simulator code according to the task blueprint.
+
+Return your answer as a single JSON object with the top-level keys. 
+The JSON must be valid (no comments, no trailing commas, no additional text outside the JSON).
