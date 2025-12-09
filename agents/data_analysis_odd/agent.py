@@ -245,7 +245,7 @@ class DataAnalysisAgent(BaseAgent):
             llm_response = self._call_llm(analysis_prompt)
             analysis_results = self._parse_llm_analysis(llm_response)
             
-        data_analysis_result = {
+            data_analysis_result = {
             "overall_simulation_design": analysis_results.get("overall_simulation_design", {}),
             "scale_granularity": analysis_results.get("scale_granularity", {}),
             "agent_archetypes": analysis_results.get("agent_archetypes", {}),
@@ -256,7 +256,7 @@ class DataAnalysisAgent(BaseAgent):
             "holdout_plan": analysis_results.get("holdout_plan", {}),
             "simulation_evaluation": analysis_results.get("simulation_evaluation", {}),
             "calibratable_parameters": analysis_results.get("calibratable_parameters", []),
-        }
+            }
         
         # Add data analysis result and file summaries to task_spec
         task_spec["data_analysis_result"] = data_analysis_result
