@@ -4,6 +4,8 @@
 
 # 🌆 SOCIA: Simulation Orchestration for Cyber-Physical-Social Intelligence and Agents
 
+<p align="center"><i>The work is in rapid progress...</i></p>
+
 <!-- Illustration Image Placeholder -->
 
 <p align="center">
@@ -13,6 +15,18 @@
 <!-- Replace this with your actual architecture diagram -->
 
 An LLM-driven multi-agent Cyber-Physical-Social simulation generator that automatically creates simulation environments based on user requirements and data.
+
+For more details about SOCIA, please check out our [paper](https://arxiv.org/abs/2505.12006).
+
+If you use SOCIA in your research, please cite:
+```bibtex
+@article{hua2025socia,
+  title={SOCIA-Nabla: Textual Gradient Meets Multi-Agent Orchestration for Automated Simulator Generation},
+  author={Hua, Yuncheng and Weatherhead, Sion and Jafari, Mehdi and Xue, Hao and Salim, Flora D},
+  journal={arXiv preprint arXiv:2505.12006},
+  year={2025}
+}
+```
 
 ## ⚠️ Disclaimer  
 SOCIA generates simulator code using backbone LLMs. By using this software, you agree that:  
