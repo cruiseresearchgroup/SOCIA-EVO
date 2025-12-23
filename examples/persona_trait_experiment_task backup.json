@@ -13,7 +13,7 @@
     "crt2_items.yaml": "YAML specification of the 4-item CRT2 form, including item text and correct answers.",
     "bcrt_items.yaml": "YAML specification of the 4-item bespoke CRT (bCRT) form, including item text and correct answers.",
     "nfc18_items.yaml": "YAML specification of the 18-item Need for Cognition short form, including item text and keyed direction (p/a).",
-    "bfi8_items.yaml": "YAML specification of the 8-item BFI-brief questionnaire used in the synthetic dataset.",
+    "bfi10_items.yaml": "YAML specification of the 8-item BFI-brief questionnaire used in the synthetic dataset.",
     "writing_tasks.yaml": "YAML specification of 2 reflection-related writing prompts used as downstream behavioural measures.",
     "crt_scoring_config.yaml": "Optional config that encodes mapping of free-form LLM responses on CRT items to ordinal labels (0 = other error, 1 = intuitive-incorrect, 2 = correct) for automatic scoring."
   },
