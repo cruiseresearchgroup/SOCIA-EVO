@@ -35,7 +35,8 @@ class CodeGenerationAgent(BaseAgent):
         selfloop: int = 3,
         blueprint: Optional[Any] = None,
         output_dir: Optional[str] = None,
-        iteration: Optional[int] = None
+        iteration: Optional[int] = None,
+        playbook: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate simulation code based on the model plan.
@@ -59,10 +60,12 @@ class CodeGenerationAgent(BaseAgent):
         """
         self.logger.info("Generating simulation code")
         
-        # Log blueprint usage if available
+        # Log blueprint / playbook usage if available
         if blueprint is not None:
             self.logger.info("Using blueprint for code generation in blueprint mode")
             self.logger.debug(f"Blueprint contains {len(blueprint)} items")
+        if playbook is not None:
+            self.logger.info("Playbook provided to code generation (ACE/ODD mode)")
         
         # # Override model_plan data_sources with processed file paths (skip in lite mode)
         # if mode != "lite" and model_plan and data_analysis and "file_references" in data_analysis:
@@ -86,7 +89,8 @@ class CodeGenerationAgent(BaseAgent):
             "feedback": feedback,
             "data_path": data_path,
             "previous_code": previous_code,
-            "mode": mode
+            "mode": mode,
+            "playbook": playbook,
         }
         
         prompt = self._build_prompt(**prompt_args)
@@ -980,7 +984,8 @@ class CodeGenerationAgent(BaseAgent):
         feedback: Optional[Dict[str, Any]] = None,
         data_path: Optional[str] = None,
         previous_code: Optional[Dict[str, str]] = None,
-        mode: str = "full"
+        mode: str = "full",
+        playbook: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Build a prompt for the LLM to generate code.

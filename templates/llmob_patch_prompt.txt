@@ -1,0 +1,37 @@
+### UNIFIED OUTPUT CONTRACT (MUST FOLLOW)
+
+**CLI**
+
+* The program MUST accept `--output_dir <path>`.
+* Create the directory if missing. Write ALL outputs under it.
+
+**Files (EXACTLY these 4, fixed names)**
+Write EXACTLY these JSON files (no extra required result files):
+
+1. `calibrated_parameters.json`
+2. `calibration_log.json`
+3. `evaluation_results_on_validation.json`
+4. `simulated_trajectories_validation.json`
+
+**Logging**
+
+* Print INFO logs to **stdout only** (never stderr). Prefix each info line with `[INFO]`.
+* Print exactly one final line: `[RESULT] wrote outputs to: <abs_output_dir>`.
+
+**Fixed schemas**
+
+* `calibrated_parameters.json` (JSON object):
+  * keys: `best_parameters` (object), `best_objective` (number), `objective_definition` (string), `seed` (int), `meta` (object)
+
+* `calibration_log.json` (JSON array of objects):
+  * each item keys: `iter` (int), `parameters` (object), `objective` (number), `metrics` (object), `notes` (string)
+
+* `evaluation_results_on_validation.json` (JSON object):
+  * must include `simulation_metrics` with EXACT keys (all numeric):
+    `category_share_mae`, `stop_count_abs_mean_error`, `stop_count_kl`, `tod_jsd_avg`,
+    `topk_poi_recall`, `transition_divergence`, `trip_distance_wasserstein`
+  * also include: `objective` (number), `objective_weights` (object), `validation_set` (object), `meta` (object)
+
+* `simulated_trajectories_validation.json` (JSON object):
+  * keys: `format_spec` (string), `trajectories` (object mapping agent_id -> list[str]), `meta` (object)
+  * every trajectory string MUST exactly follow 1921Y.json format.
