@@ -1,0 +1,35 @@
+id: bfi_10
+name: Big Five Inventory-10 (BFI-10)
+instructions: "How well do the following statements describe your personality?"
+
+response_scale:
+  min: 1
+  max: 5
+  labels:
+    1: Disagree strongly
+    2: Disagree a little
+    3: Neither agree nor disagree
+    4: Agree a little
+    5: Agree strongly
+
+items:
+  - id: 1
+    text: "I see myself as someone who is reserved."
+  - id: 2
+    text: "I see myself as someone who is generally trusting."
+  - id: 3
+    text: "I see myself as someone who tends to be lazy."
+  - id: 4
+    text: "I see myself as someone who is relaxed, handles stress well."
+  - id: 5
+    text: "I see myself as someone who has few artistic interests."
+  - id: 6
+    text: "I see myself as someone who is outgoing, sociable."
+  - id: 7
+    text: "I see myself as someone who tends to find fault with others."
+  - id: 8
+    text: "I see myself as someone who does a thorough job."
+  - id: 9
+    text: "I see myself as someone who gets nervous easily."
+  - id: 10
+    text: "I see myself as someone who has an active imagination."

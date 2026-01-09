@@ -11,14 +11,20 @@ from agents.task_understanding.agent import TaskUnderstandingAgent
 from agents.task_understanding_odd.agent import TaskUnderstandingAgent as TaskUnderstandingOddAgent
 from agents.data_analysis.agent import DataAnalysisAgent
 from agents.data_analysis_odd.agent import DataAnalysisAgent as DataAnalysisOddAgent
+from agents.data_analysis_ace.agent import DataAnalysisAgent as DataAnalysisAceAgent
 from agents.model_planning.agent import ModelPlanningAgent
 from agents.code_generation.agent import CodeGenerationAgent
 from agents.code_generation_odd.agent import CodeGenerationAgent as CodeGenerationOddAgent
+from agents.code_generation_ace.agent import CodeGenerationAgent as CodeGenerationAceAgent
 from agents.code_verification.agent import CodeVerificationAgent
 from agents.simulation_execution.agent import SimulationExecutionAgent
+from agents.simulation_execution_ace.agent import SimulationExecutionAgent as SimulationExecutionAceAgent
 from agents.result_evaluation.agent import ResultEvaluationAgent
 from agents.feedback_generation.agent import FeedbackGenerationAgent
+from agents.feedback_generation_odd.agent import FeedbackGenerationOddAgent
+from agents.feedback_generation_ace.agent import FeedbackGenerationAgent as FeedbackGenerationAceAgent
 from agents.iteration_control.agent import IterationControlAgent
+from agents.iteration_control_ace.agent import IterationControlAgent as IterationControlAceAgent
 
 class AgentContainer(containers.DeclarativeContainer):
     """
@@ -54,15 +60,21 @@ class AgentContainer(containers.DeclarativeContainer):
             "task_understanding": {"prompt_template": "templates/task_understanding_prompt.txt", "output_format": "json"},
             "task_understanding_odd": {"prompt_template": "templates/task_understanding_prompt.txt", "output_format": "json"},
             "data_analysis": {"prompt_template": "templates/data_analysis_prompt.txt", "output_format": "json"},
-            "data_analysis_odd": {"prompt_template": "templates/data_analysis_prompt.txt", "output_format": "json"},
+            "data_analysis_odd": {"prompt_template": "templates/data_analysis_odd_prompt.txt", "output_format": "json"},
+            "data_analysis_ace": {"prompt_template": "templates/data_analysis_odd_prompt.txt", "output_format": "json"},
             "model_planning": {"prompt_template": "templates/model_planning_prompt.txt", "output_format": "json"},
             "code_generation": {"prompt_template": "templates/code_generation_prompt.txt", "output_format": "python"},
             "code_generation_odd": {"prompt_template": "templates/code_generation_prompt.txt", "output_format": "python"},
+            "code_generation_ace": {"prompt_template": "templates/code_generation_odd_prompt.txt", "output_format": "python"},
             "code_verification": {"prompt_template": "templates/code_verification_prompt.txt", "output_format": "json"},
             "simulation_execution": {"prompt_template": "templates/simulation_execution_prompt.txt", "output_format": "json"},
+            "simulation_execution_ace": {"prompt_template": "templates/simulation_execution_prompt.txt", "output_format": "json"},
             "result_evaluation": {"prompt_template": "templates/result_evaluation_prompt.txt", "output_format": "json"},
             "feedback_generation": {"prompt_template": "templates/feedback_generation_prompt.txt", "output_format": "json"},
-            "iteration_control": {"prompt_template": "templates/iteration_control_prompt.txt", "output_format": "json"}
+            "feedback_generation_odd": {"prompt_template": "templates/feedback_generation_prompt.txt", "output_format": "json"},
+            "feedback_generation_ace": {"prompt_template": "templates/feedback_generation_ace_prompt.txt", "output_format": "json"},
+            "iteration_control": {"prompt_template": "templates/iteration_control_prompt.txt", "output_format": "json"},
+            "iteration_control_ace": {"prompt_template": "templates/iteration_control_prompt.txt", "output_format": "json"}
         }
         return defaults.get(agent_name, {})
 
@@ -89,6 +101,12 @@ class AgentContainer(containers.DeclarativeContainer):
         output_path=output_path
     )
     
+    data_analysis_ace_agent = providers.Factory(
+        DataAnalysisAceAgent,
+        config=config.agents.data_analysis_ace,
+        output_path=output_path
+    )
+    
     model_planning_agent = providers.Factory(
         ModelPlanningAgent,
         config=config.agents.model_planning
@@ -104,6 +122,11 @@ class AgentContainer(containers.DeclarativeContainer):
         config=config.agents.code_generation_odd
     )
     
+    code_generation_ace_agent = providers.Factory(
+        CodeGenerationAceAgent,
+        config=config.agents.code_generation_ace
+    )
+    
     code_verification_agent = providers.Factory(
         CodeVerificationAgent,
         output_dir=providers.Callable(lambda op: f"{op}/verification", output_path),
@@ -116,6 +139,12 @@ class AgentContainer(containers.DeclarativeContainer):
         config=config.agents.simulation_execution
     )
     
+    simulation_execution_ace_agent = providers.Factory(
+        SimulationExecutionAceAgent,
+        output_dir=providers.Callable(lambda op: f"{op}/execution", output_path),
+        config=config.agents.simulation_execution_ace
+    )
+    
     result_evaluation_agent = providers.Factory(
         ResultEvaluationAgent,
         config=config.agents.result_evaluation
@@ -126,9 +155,24 @@ class AgentContainer(containers.DeclarativeContainer):
         config=config.agents.feedback_generation
     )
     
+    feedback_generation_odd_agent = providers.Factory(
+        FeedbackGenerationOddAgent,
+        config=config.agents.feedback_generation_odd
+    )
+    
+    feedback_generation_ace_agent = providers.Factory(
+        FeedbackGenerationAceAgent,
+        config=config.agents.feedback_generation_ace
+    )
+    
     iteration_control_agent = providers.Factory(
         IterationControlAgent,
         config=config.agents.iteration_control
+    )
+    
+    iteration_control_ace_agent = providers.Factory(
+        IterationControlAceAgent,
+        config=config.agents.iteration_control_ace
     )
     
     # Agent provider dictionary for bulk access
@@ -138,13 +182,19 @@ class AgentContainer(containers.DeclarativeContainer):
             "task_understanding_odd": task_understanding_odd_agent,
             "data_analysis": data_analysis_agent,
             "data_analysis_odd": data_analysis_odd_agent,
+            "data_analysis_ace": data_analysis_ace_agent,
             "model_planning": model_planning_agent,
             "code_generation": code_generation_agent,
             "code_generation_odd": code_generation_odd_agent,
+            "code_generation_ace": code_generation_ace_agent,
             "code_verification": code_verification_agent,
             "simulation_execution": simulation_execution_agent,
+            "simulation_execution_ace": simulation_execution_ace_agent,
             "result_evaluation": result_evaluation_agent,
             "feedback_generation": feedback_generation_agent,
-            "iteration_control": iteration_control_agent
+            "feedback_generation_odd": feedback_generation_odd_agent,
+            "feedback_generation_ace": feedback_generation_ace_agent,
+            "iteration_control": iteration_control_agent,
+            "iteration_control_ace": iteration_control_ace_agent
         }
     ) 

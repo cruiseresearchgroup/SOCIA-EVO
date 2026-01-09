@@ -1,0 +1,2899 @@
+{
+  "playbook_metadata": {
+    "version": "v0.1",
+    "project_name": "",
+    "last_updated_time": "2026-01-04T13:53:19.295563",
+    "last_updated_iteration": "6",
+    "total_token_count": 1555,
+    "total_insights": 34,
+    "solved_count": 28,
+    "unsolved_count": 6,
+    "deleted_count": 0,
+    "finalized_at": "2026-01-03T18:07:02.323788"
+  },
+  "strategies": {
+    "poi-recall-always-zero-set-vs-topk-bug": {
+      "meta_info": {
+        "token_count": 378,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "poi_topk_recall: \"recall@K of ground-truth POIs appearing in the simulated day (set-based), average across days. K is fixed (e.g., 5 or length of simulated sequence, designed)\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall mean = 0.0 on validation; also 0.0 for every calibration iter"
+        },
+        "error_identification": "POI recall is exactly 0.0 across all calibration iterations and the held-out evaluation, indicating the metric implementation is likely wrong (or always comparing disjoint sets).",
+        "root_cause_analysis": "In Evaluator.compute_metrics(), recall is computed as intersection(gt_set, sim_pois_k)/len(gt_set). This is not recall@K as defined: denominator should be |GT| but numerator should compare to a simulated *set* of size K (or all simulated if shorter). Additionally, using the first K simulated visits (ordered) plus dividing by full GT set can drive values toward 0 when GT sizes are typically >K; the blueprint allows K to be 5 or length of simulated sequence, but denominator must be min(K, |GT|) if using recall@K or remain |GT| if using coverage recall but then K should not truncate the simulated set. Current hybrid makes the metric overly harsh and can appear degenerate when sequences are longer than K.",
+        "correct_approach": "Implement recall@K correctly and deterministically:\n- Let sim_set = set(sim_pois[:K]).\n- Let gt_set = set(gt_pois).\n- Define recall_at_k = |gt_set ∩ sim_set| / min(len(gt_set), K) (standard recall@K), OR if you want \"coverage of GT by top-K simulated\" then keep denominator len(gt_set) but do not call it recall@K and expect small values.\nAlso handle cases where sim has <K by using min(K, len(sim)).",
+        "key_insight": "When a metric is used as a calibration signal, implement it exactly per definition; a subtly mis-specified denominator/truncation can collapse the signal (here: always near 0), making calibration chase the wrong objective.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "trajectory-string-format-mismatch-comma-vs-semicolon-and-missing-period": {
+      "meta_info": {
+        "token_count": 265,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "TrajectoryStringFormatter.FORMAT_SPEC: \"comma+space separators and ends with a single '.'\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "format_day_string",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "TrajectoryStringFormatter",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Sample outputs show '; ' separators and no trailing '.' (e.g., \"... at 22:11:18\" without period)."
+        },
+        "error_identification": "Serialized trajectories do not follow the declared format_spec: code emits semicolon-separated visits and omits the required trailing period, while format_spec claims comma+space and trailing '.'. This can break downstream parsers/scorers and invalidates output contract consistency.",
+        "root_cause_analysis": "TrajectoryStringFormatter documents a canonical comma-separated, period-terminated format, but format_day_string() returns f\"{prefix} \" + \"; \".join(parts) and never appends a period. The parser parse_1921y_records() also expects semicolons, creating an internal inconsistency with FORMAT_SPEC.",
+        "correct_approach": "Make formatter and parser consistent with the canonical spec:\n- Update format_day_string() to use \", \" separators and append \".\".\n- Update parse_1921y_records() splitting logic to accept commas (and optionally semicolons for robustness) but standardize emission.\n- Ensure TrajectoryStringFormatter.FORMAT_SPEC matches actual emission.",
+        "key_insight": "Never let the declared format_spec diverge from emitted strings; keep a single canonical serializer and have parsers accept supersets for robustness.",
+        "metric_links": []
+      }
+    },
+    "evaluation-metrics-not-matching-blueprint-required-metric-set": {
+      "meta_info": {
+        "token_count": 371,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "simulation_evaluation.metrics: stop_count_mae, category_mix_jsd, time_of_day_emd, poi_topk_recall, radius_of_gyration_error"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.objective",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Reported metrics are category_share_mae, tod_jsd_avg, trip_distance_wasserstein, transition_divergence, stop_count_kl, etc., which do not match blueprint names/definitions."
+        },
+        "error_identification": "The simulator is evaluated and calibrated on a different metric suite than required by the blueprint (e.g., uses JSD over time bins instead of time_of_day_emd; uses share MAE instead of category_mix_jsd; missing radius_of_gyration_error). This makes reported performance incomparable to spec and can mis-tune parameters.",
+        "root_cause_analysis": "Evaluator.compute_metrics() implements category_share_mae and tod_jsd_avg and trip_distance_wasserstein, but blueprint requires category_mix_jsd and time_of_day_emd and radius_of_gyration_error. There is no implementation of radius of gyration; time metric is JSD not EMD; category metric is MAE not JSD. Calibration objective weights also target these non-blueprint metrics.",
+        "correct_approach": "Align evaluation to blueprint:\n- Replace category_share_mae with category_mix_jsd using js_divergence() over (fine or super) category distribution.\n- Replace tod_jsd_avg with time_of_day_emd by computing minutes-of-day samples or histograms and using wasserstein_1d() as an EMD proxy over binned distributions.\n- Implement radius_of_gyration_error: compute daily radius of gyration for simulated and GT using POI lat/lon; exclude visits with missing coords (as blueprint allows) and aggregate absolute/relative error.\n- Keep extra diagnostics metrics if desired, but report and optimize the blueprint-required ones.",
+        "key_insight": "Calibration optimizes exactly what you measure; if your metric suite drifts from spec, you’ll tune the wrong behavior even if the simulator ‘looks good’ on internal metrics.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          }
+        ]
+      }
+    },
+    "transition-divergence-stuck-at-ln2-indicates-degenerate-transition-distribution": {
+      "meta_info": {
+        "token_count": 403,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "baseline_category_transition_model: \"fit Markov transition probabilities ...\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "build_network_and_agents",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "transition_divergence ~= 0.6931471803 (≈ ln(2)) consistently across calibration and evaluation"
+        },
+        "error_identification": "Transition divergence is pegged at ~ln(2), a common maximum for JSD between two highly distinct distributions, suggesting simulated vs GT transition bigram distributions share little overlap or the computation is collapsing to a two-point support.",
+        "root_cause_analysis": "Two likely contributing mechanisms in code: (1) The simulator generates super-category sequences (sc_seq) and then selects POIs by supercat; if GT transitions are computed over fine categories or have different supercat mapping, overlap can be low. (2) In Evaluator.compute_metrics(), if either gt_bigram or sim_bigram is empty it falls back to {\"None\":1.0}; but here value is ln(2) not 0, implying both are non-empty but possibly dominated by disjoint keys due to inconsistent category->supercat mapping or because simulation uses a restricted tuned_supercats subset while GT uses full supercat space.",
+        "correct_approach": "Disambiguate then fix:\n- Add diagnostics: number of unique bigrams in GT vs SIM; top-20 bigrams and overlaps.\n- Ensure both GT and SIM transitions are computed on the same taxonomy (either fine categories or super-categories per catto.json).\n- Avoid restricting the transition support to tuned_supercats during simulation; keep full supercat support from dataset.poi_tokens_by_supercat keys + 'Unknown' so simulated bigrams can match GT support.\n- Consider adding per-user smoothing rather than hard global fallback to reduce mode collapse.",
+        "key_insight": "When a divergence metric saturates at a constant across parameter sweeps, treat it as a taxonomy/support mismatch or a collapsed feature extractor; add overlap diagnostics and ensure identical representation for GT vs SIM.",
+        "metric_links": [
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "radius-of-gyration-not-computable-because-gt-distance-steps-zero": {
+      "meta_info": {
+        "token_count": 369,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "radius_of_gyration_error: \"requires POI lat/lon\"; \"handle missing POIs by excluding those visits\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "load_poi_catalog",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "diagnostics.distance_missingness: gt_total_steps=0, gt_missing_step_fraction=null, while sim_total_steps=28"
+        },
+        "error_identification": "Ground-truth step distances are never computed (gt_total_steps=0) on the evaluated split, making any distance-based comparison unreliable and indicating GT POIs may not join to coordinates or GT sequences are too short after parsing.",
+        "root_cause_analysis": "Evaluator.add_step_dist() increments gt_total_steps for i in range(1,len(gt)), so gt_total_steps=0 implies almost all GT days have <=1 visit after parsing, or POI tokens in GT do not match dataset.poi_by_token keys (so visits exist but steps not counted would still increment totals—however totals increment before coord check, so this points to len(gt)<=1). That suggests parse_1921y_records() may be splitting incorrectly for the dataset delimiter (expects ';'), causing it to treat multi-visit strings as a single token or fail to parse additional visits.",
+        "correct_approach": "Make parsing robust to the true delimiter(s) in 1921Y.json:\n- Inspect raw day strings to confirm whether visits are separated by ';' or ','.\n- Update parse_1921y_records() to split on both ';' and ',' (careful to not split inside categories/POI names) or use a regex to extract repeated \"<loc> at <time>\" patterns.\n- After fix, assert per-day visit counts distribution for GT has reasonable mean >1 and gt_total_steps>0 in diagnostics.\nAlso implement radius_of_gyration_error per blueprint once coordinates join is working.",
+        "key_insight": "If GT-derived trajectory stats (like step counts) are zero, debug parsing/joining before tuning the generator; otherwise all spatial metrics become meaningless.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "output-contract-mismatch-calibrated-parameters-key-names": {
+      "meta_info": {
+        "token_count": 270,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "outputs: [\"calibrated_parameters\", \"evaluation_results_on_validation\"]"
+        ],
+        "code_refs": [
+          {
+            "symbol": "save_results",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "SIMULATION RESULTS show calibrated_parameters.best_objective_on_training/best_params, while code writes best_objective/best_parameters in calibrated_parameters.json"
+        },
+        "error_identification": "The on-disk output structure appears inconsistent with what the run summary expects (results loader reports best_objective_on_training/best_params, but code writes best_objective and best_parameters). This risks downstream tooling failing to read results consistently.",
+        "root_cause_analysis": "In main(), calibrated_parameters dict uses keys \"best_parameters\" and \"best_objective\". However, SIMULATION RESULTS.calibrated_parameters shows different keys (\"best_params\", \"best_objective_on_training\"), implying an external evaluator/loader expects those names or the saved file differs from the code’s intent.",
+        "correct_approach": "Stabilize output schema by matching the actually consumed keys:\n- In calibrated_parameters.json, include both naming variants (aliases) to be safe: write best_params and best_parameters pointing to same object; best_objective_on_training and best_objective same value.\n- Keep a single canonical set in future, but don’t break existing loaders.",
+        "key_insight": "When outputs are consumed by external evaluators, treat key names as API contracts; add backward-compatible aliases rather than renaming fields outright.",
+        "metric_links": []
+      }
+    },
+    "poi-recall-near-zero-personal-preference-model-too-sparse": {
+      "meta_info": {
+        "token_count": 463,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "baseline_poi_choice_model: mixture of (a) empirical POI popularity ... and (b) distance-decay ...",
+          "poi_topk_recall definition"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "build_network_and_agents",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.001734 (validation); calibration iterations topk_poi_recall mostly ~0.0004–0.0018"
+        },
+        "error_identification": "POI top-k recall is essentially zero, meaning simulated days almost never include any ground-truth POIs even as a set match.",
+        "root_cause_analysis": "POI sampling within a super-category uses per-user POI preference weights (baseline.poi_pref) plus distance, but preference mass is extremely sparse (only on POIs seen in 2019–2020). With w_pref often high (best params ~0.94), the sampler concentrates on a small set of historically seen POIs, which in 2021 often differs from the user’s actual POIs; simultaneously, candidates per supercat are huge (all POIs in that supercat), and distance decay is computed from a context POI that may not be aligned to the day’s actual starting anchor, further reducing overlap with ground truth. Net: almost no exact token matches.",
+        "correct_approach": "Make the POI-choice model less brittle and more user-anchored:\n1) In Resident.simulate_day, define candidates as a union of (a) supercat candidates and (b) user-specific top-M POIs within that supercat (from baseline counts) plus (c) global top-M POIs within that supercat; then sample from this reduced candidate set.\n2) Smooth poi_pref within a supercat: if a candidate is unseen by the user, give it a small prior proportional to global popularity (already computed in build_network_and_agents as global_poi_counts; reuse by exposing a per-supercat global popularity table rather than only a global list).\n3) Lower default w_pref (e.g., 0.3–0.7) and widen calibration search; current best pushes it to ~0.94, reinforcing sparsity.\n4) Ensure a consistent “start anchor” for distance: if ctx_poi exists but is not in the POI catalog / lacks coords, fall back to a home/anchor POI with coords.",
+        "key_insight": "When the evaluation requires exact POI token matches, any purely “user-history-only” POI preference will collapse recall under distribution shift; always include global/popularity smoothing and candidate-set pruning.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "missing-radius-of-gyration-metric-not-implemented": {
+      "meta_info": {
+        "token_count": 251,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "simulation_evaluation.metrics includes radius_of_gyration_error",
+          "definition: error between simulated and GT daily radius of gyration computed from POI coordinates"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "No radius_of_gyration_error reported; instead trip_distance_wasserstein is used"
+        },
+        "error_identification": "Blueprint requires radius_of_gyration_error, but the implementation reports trip_distance_wasserstein and never computes radius of gyration.",
+        "root_cause_analysis": "Evaluator.compute_metrics computes step-distance Wasserstein (trip_distance_wasserstein) based on consecutive-visit distances, but does not compute per-day radius of gyration from POI coordinates nor compare to GT as specified.",
+        "correct_approach": "Replace or add the blueprint metric:\n- For each (user, day), map each visited POI to (lat, lon); drop visits with missing coords (as blueprint allows).\n- Compute center of mass and radius of gyration r_g = sqrt(mean(||x_i - x_cm||^2)).\n- Compute absolute error |r_g_sim - r_g_gt| (or relative if desired; blueprint allows absolute/relative). Aggregate mean over days.\n- Emit as radius_of_gyration_error and (if keeping trip_distance_wasserstein for diagnostics) mark it non-objective or extra.",
+        "key_insight": "Don’t silently substitute evaluation metrics: implement blueprint metrics directly, and only add extras as explicitly non-contract diagnostics.",
+        "metric_links": []
+      }
+    },
+    "time-of-day-metric-uses-jsd-not-emd": {
+      "meta_info": {
+        "token_count": 238,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "time_of_day_emd definition: Earth Mover's Distance over minutes-of-day"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Reported tod_jsd_avg=0.0364; blueprint expects time_of_day_emd"
+        },
+        "error_identification": "The simulator evaluates time-of-day distribution mismatch using JSD over coarse 30-min bins rather than the blueprint-required EMD over minutes-of-day.",
+        "root_cause_analysis": "Evaluator.compute_metrics builds weekday/weekend histograms on 30-min bins and computes js_divergence, outputting tod_jsd_avg. This deviates from the blueprint’s Earth Mover’s Distance requirement, and may hide systematic shifts (EMD is sensitive to “how far” mass moved).",
+        "correct_approach": "Implement EMD (1D Wasserstein) on minute-of-day:\n- Collect all visit minutes-of-day for GT and sim across the split (or per day then average).\n- Compute wasserstein_1d on the raw minute lists (already implemented) or on cumulative distributions.\n- Either replace tod_jsd_avg with time_of_day_emd or output both and align the objective to blueprint time_of_day_emd.",
+        "key_insight": "For circular/ordered domains like time-of-day, prefer distance-aware metrics (EMD/Wasserstein) over divergence on coarse bins when the spec demands shift magnitude.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "category-metric-computes-supercategory-share-mae-not-jsd-over-fine-cats": {
+      "meta_info": {
+        "token_count": 212,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "category_mix_jsd definition: JSD between simulated vs ground-truth distributions of fine categories (or super-categories)"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Reported category_share_mae=0.0242; blueprint expects category_mix_jsd"
+        },
+        "error_identification": "The implementation reports category_share_mae (mean absolute share difference) on super-categories, not JSD on categories/super-categories as specified.",
+        "root_cause_analysis": "Evaluator.compute_metrics maps each visit to a super-category and uses shares_mae; it never computes Jensen–Shannon divergence over fine categories or over super-categories.",
+        "correct_approach": "Compute category_mix_jsd per blueprint:\n- Decide whether to use fine category or super-category consistently (blueprint allows either; pick super-category if catto coverage is partial).\n- Build normalized distributions for GT and sim across the split.\n- Compute js_divergence and output as category_mix_jsd. Keep category_share_mae only as an auxiliary diagnostic if desired.",
+        "key_insight": "Match the metric family in the spec: MAE on shares and JSD capture different failures; using the wrong one can miscalibrate the shift parameters.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-model-underestimates-and-misaligns-distribution": {
+      "meta_info": {
+        "token_count": 339,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "stop_count_mae definition",
+          "theta_stop_count_multiplier calibratable parameter"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=2.2225; diagnostics gt_mean_visits_per_day=7.759 vs sim_mean_visits_per_day=6.686; stop_count_kl=0.4452"
+        },
+        "error_identification": "Stop counts are materially off: simulations average ~1.07 fewer visits/day than ground truth, with large per-day absolute error (~2.22) and distribution mismatch (KL~0.45).",
+        "root_cause_analysis": "Stop-count generation rescales a discrete pmf by rounding counts (c2 = round(c*mult)) and then applies ad-hoc neighbor smoothing (adding mass to c±1). This can distort the original distribution (multi-modal shapes collapse), and the later truncation in simulate_day (break if t_min >= day) further reduces realized stop count, biasing downward vs the sampled stop_count.",
+        "correct_approach": "Stabilize stop-count control and prevent truncation bias:\n1) Sample stop_count directly from the baseline pmf, then apply multiplier by shifting probabilities rather than rounding counts (e.g., reweight each count c by exp(-|c - c*mult|/tau) and renormalize).\n2) Track when the time loop truncates (t_min>=MINUTES_PER_DAY) and either (a) cap gap sampling to fit remaining day time, or (b) allow later-day timestamps up to 23:59 by compressing gaps.\n3) Add a diagnostic: sampled_stop_count vs realized_len(visits) to quantify truncation-induced error per split.",
+        "key_insight": "If you sample a target sequence length but later time-feasibility truncates the sequence, you must either enforce feasibility during length sampling or adjust gaps to honor the sampled length; otherwise stop-count metrics will be systematically biased.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "gt-coordinate-missingness-very-high-undermines-distance-metrics": {
+      "meta_info": {
+        "token_count": 284,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "radius_of_gyration_error requires POI lat/lon join; handle missing POIs by excluding those visits",
+          "POI catalog join by matching POI identifier strings"
+        ],
+        "code_refs": [
+          {
+            "symbol": "load_poi_catalog",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics.add_step_dist",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "diagnostics.distance_missingness.gt_missing_step_fraction=0.7000 (gt_total_steps=4677); sim_missing_step_fraction=0.0"
+        },
+        "error_identification": "About 70% of ground-truth step distances cannot be computed due to missing coordinates, which makes distance-based evaluation noisy and potentially misleading.",
+        "root_cause_analysis": "The POI coordinate join is token-exact: dataset visit tokens must match poi_category_... tokens exactly. Any formatting differences (extra whitespace, punctuation, category name variations, casing) will cause a miss and be treated as missing coords. The simulator’s generated POIs all come from the POI catalog, so sim missingness is 0, creating an asymmetry.",
+        "correct_approach": "Improve token normalization at parse/join time without inventing new files:\n- In parse_1921y_records, normalize loc token by stripping trailing punctuation and collapsing internal whitespace.\n- When loading poi_catalog, also store a normalized-key index (e.g., strip and collapse whitespace) to map GT tokens to POIInfo when exact match fails.\n- Log top-N unmatched GT tokens to confirm whether misses are due to formatting vs truly absent POIs.",
+        "key_insight": "Distance-based metrics are only as good as the POI-token join; always implement robust normalization and log unmatched identifiers before trusting mobility-radius results.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "context-window-rule-violated-by-unbounded-backfill": {
+      "meta_info": {
+        "token_count": 235,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Online OOD context window rule: construct a 7-day context window using only days strictly earlier than target; may backfill from late 2020"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._context_last_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "No direct metric; but affects realism and downstream recall/distance plausibility"
+        },
+        "error_identification": "If no visits exist in the strict 7-day window, the code backfills from any earlier day (potentially far earlier than late 2020), which can leak stale context and violate the intended 7-day rule semantics.",
+        "root_cause_analysis": "MobilitySimulator._context_last_poi first tries [target-7d, target), but on empty it falls back to any r.date < target_date without limiting how far back it goes. Blueprint permits backfill from late 2020, not arbitrary history.",
+        "correct_approach": "Constrain the fallback:\n- If the 7-day window is empty, extend the window backwards only to a bounded horizon (e.g., 30 days) and allow crossing year boundary into late 2020, but do not use arbitrarily old records.\n- Alternatively, if no context in bounded window, fall back to anchor/home POI rather than ancient last visit.",
+        "key_insight": "Context windows in OOD simulations must be time-bounded even in fallback paths; otherwise you silently change the conditioning regime and may inflate/deflate metrics unpredictably.",
+        "metric_links": []
+      }
+    },
+    "output-contract-mismatch-evaluates-test-split-but-names-as-validation": {
+      "meta_info": {
+        "token_count": 270,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "low",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "outputs: calibrated_parameters, evaluation_results_on_validation",
+          "holdout_plan: V_calib (first 80%) and V_test (last 20%)",
+          "comparison_method: evaluate on validation for calibration, then report held-out test once"
+        ],
+        "code_refs": [
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "save_results",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "evaluation_results_on_validation.json contains split=per_user_last_20pct_of_2021 and note says held-out V_test"
+        },
+        "error_identification": "The program writes evaluation results on the per-user last-20% (test split) into a file named evaluation_results_on_validation.json, which is semantically confusing versus the blueprint naming.",
+        "root_cause_analysis": "In main(), after calibrating on V_calib, it rolls out on splits.test_days_by_user but stores it under evaluation_results_on_validation and simulated_trajectories_validation.",
+        "correct_approach": "Align naming to split semantics while respecting required output filenames:\n- Keep required filename evaluation_results_on_validation.json if mandated by external contract, but include explicit fields: {\"evaluated_split\": \"V_test\"} and optionally also write a separate evaluation_results_on_test.json if allowed by the environment (only if not prohibited).\n- Alternatively, evaluate on V_calib and store that as “on_validation”, and store V_test metrics under calibrated_parameters.meta or another required artifact, ensuring no tuning uses V_test.",
+        "key_insight": "When output filenames are fixed by contract, make the evaluated split unambiguous in the JSON payload to prevent accidental ‘validation vs test’ misuse downstream.",
+        "metric_links": []
+      }
+    },
+    "blueprint-metric-mismatch-missing-required-eval-metrics": {
+      "meta_info": {
+        "token_count": 265,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"simulation_evaluation\": metrics: stop_count_mae, category_mix_jsd, time_of_day_emd, poi_topk_recall, radius_of_gyration_error"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "SIMULATION RESULTS report only {category_share_mae, stop_count_abs_mean_error, stop_count_kl, tod_jsd_avg, topk_poi_recall, transition_divergence, trip_distance_wasserstein}; blueprint-required metrics are not produced as top-level metrics."
+        },
+        "error_identification": "Evaluation is not aligned to the blueprint’s required metric set and naming (e.g., stop_count_mae vs stop_count_abs_mean_error, category_mix_jsd vs category_share_mae, time_of_day_emd not exposed, radius_of_gyration_error not exposed as a metric).",
+        "root_cause_analysis": "Evaluator computes additional blueprint metrics only inside diagnostics (blueprint_metrics block) and uses non-blueprint metric names for the optimization/evaluation surface, so the run cannot be judged/calibrated strictly per blueprint outputs.",
+        "correct_approach": "Expose blueprint metrics as first-class outputs and (optionally) as calibration objective terms: (1) Add keys stop_count_mae, category_mix_jsd, time_of_day_emd, poi_topk_recall, radius_of_gyration_error to the returned metric dict. (2) Either rename/alias existing metrics or provide both names. (3) Update objective_weights to reference blueprint names (or map internally). Keep V_test evaluation single-shot as currently done.",
+        "key_insight": "Treat metric names as API: if the spec lists metrics, compute them explicitly with exact names and avoid burying them only in diagnostics.",
+        "metric_links": []
+      }
+    },
+    "poi-topk-recall-near-zero-due-to-unconditioned-poi-choice": {
+      "meta_info": {
+        "token_count": 363,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"baseline_poi_choice_model\": Given chosen category, choose POI via mixture of personal popularity and distance-decay (conditioned on category and distance).",
+          "\"action_decision_policy\": sample activity categories then choose POI conditioned on category"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "build_network_and_agents",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.003468208092485549 (almost zero)."
+        },
+        "error_identification": "The simulator almost never reproduces ground-truth POIs (recall@5 ≈ 0.35%).",
+        "root_cause_analysis": "POI selection is not actually conditioned on the chosen activity category/super-category. In Resident.simulate_day, candidates are taken from user/global top POIs *by super-category*, but the scoring weights (pref_w) use baseline.poi_pref and global_poi_pref that are not category-specific; this lets globally popular POIs dominate within a supercat and makes exact POI matching extremely unlikely. Additionally, there is no explicit anchoring to high-frequency per-user POIs per (super)category beyond a shallow top list, and no mechanism to reuse yesterday’s frequent POIs in 2021 context beyond start_poi.",
+        "correct_approach": "Make POI choice explicitly conditional and sharper: (1) Fit per-user per-supercat POI preference distributions from 2019–2020 (counts restricted to that supercat) and use them as the preference component instead of unconditional baseline.poi_pref. (2) In simulate_day, restrict candidates to the chosen supercat’s POI catalog when available (dataset.poi_tokens_by_supercat[sc]) with a cap + sampling, then apply mixture of (user_supercat_pref vs distance-decay). (3) Add an ‘anchor POI reuse’ probability to reselect from the user’s top-K POIs for that supercat, improving recall.",
+        "key_insight": "If the evaluation includes exact-POI overlap, POI sampling must be conditioned (category → POI) and should include a high-mass component on the user’s frequent POIs within that category.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-error-high-from-mean-matching-instead-of-distribution-fit": {
+      "meta_info": {
+        "token_count": 322,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"stop_count_mae\": MAE between simulated and ground-truth number of visits per (user, day).",
+          "\"theta_stop_count_multiplier\": scales expected number of daily stops"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.703757225433526, stop_count_kl=0.2431591315500251."
+        },
+        "error_identification": "Daily visit counts are off by ~1.7 visits on average and the count distribution is noticeably mismatched.",
+        "root_cause_analysis": "Stop count sampling targets a shifted mean via an ad-hoc exponential penalty around target (mean_base*mult), but does not re-parameterize or refit the distribution (e.g., via scaling in a parametric family or via resampling with calibrated temperature). This can systematically misfit heavier tails typical in abnormal periods. Also, stop_count_multiplier is globally applied; blueprint allows per-user baseline but expects calibrated abnormal shift parameters to produce good match on 2021.",
+        "correct_approach": "Replace the mean-matching heuristic with a distribution-shaping mechanism: (1) compute a per-daytype baseline count PMF support, then apply a calibrated temperature/tilt: w(c) ∝ pmf(c) * exp(λ*c) where λ is derived from theta_stop_count_multiplier or directly calibrated; normalize. (2) Optionally allow separate multipliers for weekday/weekend or per-user offset term if calibration is still global. (3) Clip support by empirical 2021 plausible range per user (from V_calib only) without using test data.",
+        "key_insight": "To match count MAE and count KL simultaneously, use a principled exponential tilt/temperature transform of the baseline PMF rather than shifting only the mean with arbitrary penalties.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "time-of-day-mismatch-from-30min-binning-and-no-within-day-conditioning": {
+      "meta_info": {
+        "token_count": 286,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"time_step\": minutes; output HH:MM:SS by rounding/stochastic seconds jitter",
+          "\"time_of_day_emd\": EMD between simulated vs ground-truth visit times (minutes-of-day)",
+          "\"baseline_inter_event_time_dist\": successive time gaps within 2019–2020"
+        ],
+        "code_refs": [
+          {
+            "symbol": "_time_hist_48",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.058130744060747364."
+        },
+        "error_identification": "Time-of-day distributions show a moderate divergence (JSD ~0.058), suggesting schedules are somewhat misaligned.",
+        "root_cause_analysis": "Start times are sampled from a coarse 30-minute histogram, and subsequent visit times are driven by unconditioned gap samples (per daytype only) with a hard end-of-day clamp; there is no conditioning on time-of-day, activity type, or stop index. This tends to compress or smear the intra-day temporal structure and can shift mass toward late-day boundary conditions.",
+        "correct_approach": "Increase temporal fidelity and add simple structure: (1) reduce TIME_BIN_MINUTES to 10 or 15 for start time histograms, or fit a KDE-like discrete distribution over minutes-of-day from training. (2) Condition gap sampling on stop index (early/mid/late) and/or on super-category transition (prev_sc→next_sc) using training-derived gap samples. (3) When clamping to end-of-day, resample gaps/stop_count rather than repeatedly forcing events into the last minutes.",
+        "key_insight": "Coarse start-time bins plus unconditioned gaps usually produce correct-looking averages but fail distributional metrics; add conditioning on stop index/transition to recover realistic temporal structure.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "category-mix-metric-not-jsd-and-uses-supercat-only": {
+      "meta_info": {
+        "token_count": 185,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"category_mix_jsd\": JSD between simulated vs ground-truth distributions of fine categories (or super-categories)"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "category_share_mae=0.027798996902778872 (not JSD; computed on super-categories via catto mapping)."
+        },
+        "error_identification": "Reported category metric is MAE on super-category shares rather than the blueprint’s category_mix_jsd (fine or super).",
+        "root_cause_analysis": "Evaluator computes category_share_mae as the primary category metric and computes category_mix_jsd only inside diagnostics. This changes both optimization pressure and reported performance compared to the blueprint requirement.",
+        "correct_approach": "Compute and surface category_mix_jsd as a first-class metric (fine-category and/or super-category variant) and use it in the objective. If keeping category_share_mae as an auxiliary metric, report both and pick one explicitly for calibration per blueprint.",
+        "key_insight": "When a spec says “JSD”, using MAE instead can hide mode-collapse/mass-shift errors; match the divergence family required by the evaluation.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "distance-missingness-discrepancy-masks-spatial-metrics": {
+      "meta_info": {
+        "token_count": 355,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"radius_of_gyration_error\": requires POI lat/lon; handle missing POIs by excluding those visits",
+          "\"baseline_poi_choice_model\": distance-decay from current POI using lat/lon"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.lookup_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Diagnostics: gt_missing_step_fraction≈0.70 vs sim_missing_step_fraction≈0.032; trip_distance_wasserstein=1.1339350305897529."
+        },
+        "error_identification": "Ground-truth step distances are mostly missing coordinates while simulated steps are mostly scorable; this creates an apples-to-oranges comparison for spatial distance distributions and can distort the reported distance metric.",
+        "root_cause_analysis": "Simulation tends to pick POIs from the POI catalog (which has coordinates), while ground truth contains many POI tokens not found in the catalog or not normalized to match, leading to high missingness in gt distance computations. The evaluator computes Wasserstein on the remaining gt distances without adjusting for missingness bias.",
+        "correct_approach": "Reduce token mismatch and correct comparison bias: (1) strengthen normalization/aliasing of POI tokens by building a more robust mapping (e.g., stripping punctuation already done; additionally consider case normalization and consistent whitespace) using dataset.poi_token_by_normalized in both parsing and evaluation. (2) In parse_1921y_records, resolve tokens via norm_index at parse time so gt tokens align with catalog when possible. (3) For trip distance metric, report missingness-adjusted metric: either compute on intersection-only days/steps (both gt and sim have coords) or weight by shared-coordinate fraction; at minimum, log and threshold missingness to warn that the metric is unreliable.",
+        "key_insight": "Spatial metrics are only meaningful when coordinate coverage is comparable; normalize tokens early and compute distance metrics on matched-coordinate subsets.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "no-online-context-window-features-beyond-last-poi": {
+      "meta_info": {
+        "token_count": 232,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "low",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "\"Online OOD context window rule\": 7-day context window strictly earlier than target; may include earlier 2021 and backfill from late 2020"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._context_last_poi",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Context is implemented only as last POI seeding; no direct metric isolates this."
+        },
+        "error_identification": "The 7-day context window requirement is only weakly utilized (only the last POI is used), limiting OOD adaptation and personalization in 2021 rollouts.",
+        "root_cause_analysis": "_context_last_poi returns a single token (last POI) rather than a context summary (recent POI frequency, recent category mix, recent stop-count tendencies) that could influence day planning. This underuses the blueprint’s intended online context mechanism.",
+        "correct_approach": "Expand context usage while respecting the strict ‘past-only’ rule: return a compact context object (e.g., last_poi, recent_top_pois, recent_supercat_mix, recent_mean_stop_count, recent_start_time_shift proxy) computed from days < target_date, and feed it into simulate_day to modulate initial supercat distribution, anchor reuse probability, and stop_count sampling.",
+        "key_insight": "If a spec provides an online context window, use it to condition multiple parts of generation (counts, categories, POIs), not just the starting location.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "missing-fine-category-metrics-computed-as-supercategory": {
+      "meta_info": {
+        "token_count": 272,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Blueprint metric: \"category_mix_jsd\" defined on fine categories (or super-categories optionally).",
+          "Blueprint: \"Extract Category from tokens; optionally map to super-category via catto.json\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "category_share_mae=0.0245 looks very low while topk_poi_recall=0.087 is low; evaluator uses super-category shares only (sc_of_visit), not fine-category mix."
+        },
+        "error_identification": "Reported category distribution error is very low, but it is computed over super-categories only, not the blueprint’s fine-category distribution, making the metric less discriminative and potentially masking category-level mismatches.",
+        "root_cause_analysis": "In Evaluator.compute_metrics(), category counts are built via sc_of_visit() which maps each visit to super-category (catto.json) and then computes category_share_mae and category_mix_jsd on those super-categories. This diverges from the blueprint’s required metric definition which is fine-category by default (super-category is optional, not the only mode).",
+        "correct_approach": "Add a fine-category path in Evaluator.compute_metrics(): extract fine category from token (split on '#'), compute fine-category counts and JSD/MAE on that distribution. Keep existing super-category metrics if desired, but ensure the primary reported metric matches blueprint intent (and name).",
+        "key_insight": "If the blueprint allows an optional aggregation (super-category), implement both and clearly report which one drives selection; otherwise you risk optimizing an easier proxy metric that hides failures.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-recall-low-due-to-no-personal-poi-memory-in-2021-context": {
+      "meta_info": {
+        "token_count": 306,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Blueprint: \"Online OOD context window rule: ... construct a 7-day context window ...\"",
+          "Blueprint: POI choice should blend personal preference and distance decay."
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._context_last_poi",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.0873 (low)."
+        },
+        "error_identification": "POI overlap with ground truth is very low (recall@5 ~ 0.09), indicating the simulator rarely hits the user’s true POIs on a given day.",
+        "root_cause_analysis": "The context mechanism only uses the last POI from prior days as a starting point (_context_last_poi), but does not condition the day’s POI candidates on the 7-day context window beyond that. In Resident.simulate_day(), candidates are mostly (a) top historical POIs from 2019–2020 by supercat and (b) global popular POIs; this can miss 2021-specific recurring POIs that appear in recent 2021 context (e.g., new home/work or changed routines), which the blueprint explicitly allows using earlier 2021 days in the context window.",
+        "correct_approach": "Extend _context_last_poi into a context feature extractor that returns recent POIs and/or per-supercat POI counts from the preceding 7 days (strictly earlier than target date). In Resident.simulate_day(), inject these context POIs into the candidate set with a strong prior (e.g., additional additive weight or separate mixture component). Ensure strict no-leakage (exclude target day).",
+        "key_insight": "A context window should influence more than the initial state; use it to bias the full choice set toward recently seen user-specific POIs to improve recall under regime shifts.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-error-high-missing-daylength-and-dwell-structure": {
+      "meta_info": {
+        "token_count": 307,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Blueprint: baseline_stop_count_dist (per-user) and abnormal shift via theta_stop_count_multiplier",
+          "Blueprint: daily plan uses start_time, stop_count, and inter-event gaps with feasibility constraints"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident._tilt_count_pmf_to_target_mean",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=2.0101 (high); stop_count_kl=0.1165 (moderate)."
+        },
+        "error_identification": "The simulator’s per-day number of visits is off by ~2 on average, despite matching the average visits/day reasonably closely in diagnostics.",
+        "root_cause_analysis": "Stop count is sampled from a tilted baseline PMF, but there is no coupling between sampled stop_count and feasible time budget beyond a minimal `end_min - (stop_count-1)` guard. Because gaps are sampled from an empirical gap list without conditioning on stop_count or time-of-day, the model can produce unrealistic dense late-day chains or compress chains to fit, which destabilizes effective stop realization vs the intended distribution and yields high MAE.",
+        "correct_approach": "Condition gap sampling on remaining time budget: when stop_count is high, sample smaller gaps (or rescale sampled gaps) to maintain feasibility without truncation artifacts; when stop_count is low, allow larger gaps. Alternatively, model an explicit end time distribution and sample stop_count consistent with (end-start)/expected_gap. Keep the existing PMF tilt but add a second-stage feasibility-consistent adjustment rather than silent clipping.",
+        "key_insight": "Stop count, gaps, and day time budget must be jointly consistent; sampling them independently and then clipping times tends to inflate count errors and distort temporal statistics.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "time-distribution-mismatch-from-coarse-within-bin-sampling-and-start-time-shift": {
+      "meta_info": {
+        "token_count": 271,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Blueprint: time_of_day_emd on minute-of-day distribution; simulator can operate in minute granularity with HH:MM:SS output"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.1054 (noticeable mismatch)."
+        },
+        "error_identification": "Time-of-day distribution mismatch remains moderate (JSD ~ 0.105), indicating simulated visit times are shifted/spread differently than ground truth.",
+        "root_cause_analysis": "Start times are sampled from a binned histogram (15-minute bins) and then uniformly within-bin, then shifted by theta_start_time_shift_minutes. Subsequent times are driven by gap sampling that is not conditioned on time-of-day; additionally, the code retries start time up to 8 times to force an “active window” (04:00–23:30), which can reshape the distribution in a way not present in the baseline data.",
+        "correct_approach": "Fit and sample start times at minute resolution (or use 5-minute bins) without the hard active-window rejection loop; if you need constraints, incorporate them into the learned baseline (e.g., truncated distribution) so sampling matches data. Condition gaps on time-of-day bins or remaining minutes to avoid piling events near midnight.",
+        "key_insight": "Avoid post-hoc rejection rules on learned temporal distributions; encode constraints directly into the fitted distribution or you will create distribution shifts that show up as TOD divergence.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "spatial-metric-degradation-from-high-gt-coordinate-missingness": {
+      "meta_info": {
+        "token_count": 290,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Blueprint: radius_of_gyration_error requires POI lat/lon join; handle missing POIs by excluding those visits"
+        ],
+        "code_refs": [
+          {
+            "symbol": "load_data",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.resolve_poi_token",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "trip_distance_wasserstein=0.9993 with diagnostics showing gt_missing_step_fraction≈0.70 and sim_missing_step_fraction≈0.47."
+        },
+        "error_identification": "Trip distance mismatch is sizable, and evaluation indicates extremely high missing coordinate rates for ground-truth steps (~70%), making distance-based metrics noisy and biased.",
+        "root_cause_analysis": "Despite added normalization/casefold indices, many ground-truth POI tokens still fail to resolve to POI catalog entries, so step distances are missing and dropped. This leads to an apples-to-oranges comparison: simulated steps have higher coordinate availability than GT, so the two distance distributions are computed on different subsets.",
+        "correct_approach": "Improve token canonicalization beyond whitespace/punctuation: implement a strictly verified mapping only when the exact token exists in the catalog; log the top unresolved fine categories/tokens to diagnose systematic mismatches. Additionally, when computing trip_distance_wasserstein, enforce the same missingness policy for sim and GT (e.g., only compare steps where both endpoints resolve in both sim and GT, or downsample sim steps to match GT resolvability) to reduce bias.",
+        "key_insight": "If a metric depends on external joins, missingness can dominate; measure and equalize join success across simulated and GT before trusting distribution distances.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-choice-mixture-capped-too-high-limits-distance-signal": {
+      "meta_info": {
+        "token_count": 204,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Blueprint parameter: theta_preference_vs_distance_mixture in [0.0, 1.0]"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "trip_distance_wasserstein=0.9993 and topk_poi_recall=0.0873; code clamps w_pref to <=0.9."
+        },
+        "error_identification": "The calibrated preference-vs-distance mixture cannot reach the blueprint’s full [0,1] range, which can limit calibration’s ability to trade off personalization vs spatial plausibility.",
+        "root_cause_analysis": "Resident.simulate_day() clamps w_pref with `min(0.9, w_pref)` even though the blueprint allows up to 1.0. This prevents “pure preference” regimes that may be needed to improve POI recall for users with strong habitual POIs, especially when category modeling is coarse.",
+        "correct_approach": "Clamp theta_preference_vs_distance_mixture to [0.0, 1.0] exactly as specified. If numerical issues motivated the cap, address them by adding a small floor to distance weights or preference weights (already done) rather than changing the parameter domain.",
+        "key_insight": "Don’t silently change calibrated parameter bounds; calibration depends on the search space matching the spec.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "missing-fine-category-generation-model": {
+      "meta_info": {
+        "token_count": 287,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "baseline_category_transition_model: \"Extract Category from each location token; optionally map to super-category\"",
+          "policy_form: \"Sample a sequence of activity categories using a Markov model (category or super-category)\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "build_network_and_agents",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "category_share_mae=0.0010 and transition_divergence=0.0316 are very low while topk_poi_recall is low (0.1277), consistent with matching super-category dynamics but not fine-category/POI identity."
+        },
+        "error_identification": "POI recall is poor despite very low category share error and low transition divergence, suggesting the model is getting coarse category flow right but not producing the correct fine categories/POIs.",
+        "root_cause_analysis": "The simulator generates only a super-category sequence (sc_seq) and then samples POIs directly within each super-category; it never generates a fine-category sequence nor conditions POI choice on fine category. This collapses many fine categories into the same super-category, making it hard to hit the correct POI tokens even when super-category mix/transition matches.",
+        "correct_approach": "Add a fine-category layer: (1) fit fine-category transition model from 2019–2020 (with smoothing via super-category when sparse), (2) during simulate_day sample fine categories then sample POIs within that fine category (not only super-category). Keep super-category multipliers by applying them as priors over fine categories via their mapped super-category.",
+        "key_insight": "If the evaluation target is at POI token granularity, generating only higher-level categories will often look good on aggregate mix metrics while failing identity/recall metrics; model the finest target level explicitly.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.65
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.35
+          }
+        ]
+      }
+    },
+    "context-window-includes-2021-ground-truth-peeking": {
+      "meta_info": {
+        "token_count": 355,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Online OOD context window rule: \"For each 2021 target day, construct a 7-day context window using only days strictly earlier than the target day; this window may include earlier 2021 days and may backfill from late 2020; never use target-day or future days.\"",
+          "Fit baseline only on 2019–2020; no online learning from 2021 ground truth during simulation."
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator.context_features",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._context_last_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.1277 is already low; however this issue is about evaluation validity rather than improving a specific metric."
+        },
+        "error_identification": "The simulator uses a 7-day context window, but the implementation appears to draw from the full dataset records without restricting the window to only observable history available at generation time (i.e., it uses ground-truth visits from earlier 2021 days).",
+        "root_cause_analysis": "MobilitySimulator.context_features/_context_last_poi pulls visits from dataset.day_records_by_user, which includes ground-truth 2021 sequences. The blueprint allows using past days as “context,” but explicitly as an OOD context construction rule—not as an oracle for true POIs/times. In current code, context features directly inject recent real POIs into candidate sets, effectively using ground-truth history as a strong conditioning signal.",
+        "correct_approach": "Separate “available context” from ground truth: during evaluation, context should be built from (a) simulated trajectories of prior days when rolling forward, or (b) an explicitly provided observed prefix stream (if the task provides such observations). If only offline full-day generation is required per day, disable context injection from 2021 ground truth entirely (or restrict backfill to 2020 only). Add a guard: context source must be either 'simulated_history' or '2020_backfill', never '2021_gt'.",
+        "key_insight": "Any feature derived from the labeled/evaluation-period ground truth (even if temporally earlier) must be treated as privileged information unless the task explicitly provides it as observed input at inference time.",
+        "metric_links": []
+      }
+    },
+    "stop-count-mae-high-from-no-2021-calibrated-stopcount-shift-structure": {
+      "meta_info": {
+        "token_count": 331,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "theta_stop_count_multiplier",
+          "baseline_stop_count_dist: \"fit a per-user distribution\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident._tilt_count_pmf_to_target_mean",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.9610; stop_count_kl=0.0834"
+        },
+        "error_identification": "Stop-count error is large (~2 visits/day MAE), indicating daily chain length is not being matched well.",
+        "root_cause_analysis": "Stop count is sampled by tilting the 2019–2020 per-user PMF to match a scaled mean (theta_stop_count_multiplier). This single scalar mean-tilt may not reproduce 2021’s changed distribution shape (e.g., heavier tails or mass shifts), and the clamp of start_min with `start_min = min(start_min, end_min - (stop_count-1))` plus remaining-budget gap compression can create implicit correlations that distort realized stop counts vs what the PMF intended across users/day-types.",
+        "correct_approach": "Calibrate a distribution-shape adjustment, not just mean scaling: e.g., add a temperature/dispersion parameter for stop counts (tilt strength) or fit a 2021-validation correction table per daytype (weekday/weekend) at the population level. Also log realized stop_count histogram on V_calib to verify tilt works before time-feasibility adjustments; ensure feasibility logic does not implicitly reduce/increase stops (it currently doesn’t drop stops, but it can force extremely small gaps and end-of-day piling).",
+        "key_insight": "Matching only the mean of a discrete behavioral distribution is often insufficient under regime shift; add at least one parameter controlling dispersion/tail weight and validate the realized histogram after all feasibility constraints.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.75
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          }
+        ]
+      }
+    },
+    "poi-recall-low-from-overweighting-generic-popularity-and-repeats": {
+      "meta_info": {
+        "token_count": 342,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "baseline_poi_choice_model: \"empirical POI popularity\" + \"distance-decay\"; \"personal historical preference\"",
+          "poi_topk_recall metric"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.1277"
+        },
+        "error_identification": "POI recall@K is low (~0.13), meaning simulated top-K POIs rarely overlap the ground-truth POIs for the same user-day.",
+        "root_cause_analysis": "POI choice relies on a candidate pool built from (context top, user top, global top, catalog sample) and then mixes preference and distance weights. With calibrated theta_preference_vs_distance_mixture often near 1 (0.944), the model over-exploits high-frequency POIs and repeats (some days show repeated Convenience Store#... or Park#... in samples), which can reduce set overlap when ground truth includes more diverse POIs. Also, lack of explicit “no-repeat” or diminishing returns encourages reselecting the same POI token multiple times within a day, wasting slots that could match additional ground-truth POIs (recall is set-based on simulated prefix).",
+        "correct_approach": "Add diversity/anti-repeat constraints: (1) maintain a set of already-chosen POIs in the day and penalize/reject repeats beyond a small allowed threshold; (2) introduce a per-day novelty bonus toward POIs not yet visited that day (or a simple self-avoidance factor). Additionally, reduce dominance of global popularity by lowering alpha_global and/or capping ctx_boost so user-specific preferences (2019–2020) are more influential than global hubs.",
+        "key_insight": "Recall@K for sets is hurt by within-day repetition; enforce diversity or diminishing returns when sampling discrete items for a fixed-length list.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "time-of-day-mismatch-from-single-global-shift-and-gap-sampling": {
+      "meta_info": {
+        "token_count": 272,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "theta_start_time_shift_minutes",
+          "baseline_inter_event_time_dist",
+          "time_of_day_emd"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.0563"
+        },
+        "error_identification": "Time-of-day distribution divergence is moderate (tod_jsd_avg≈0.056), indicating visit-time placement is not well-matched.",
+        "root_cause_analysis": "The simulator uses a single global start-time shift parameter for all users/days and then samples gaps from an unconditional gap pool per daytype, with additional remaining-budget compression. This can distort the intra-day temporal structure (e.g., clustering visits late/near end-of-day or compressing gaps) and cannot capture heterogeneous 2021 temporal shifts (weekday/weekend or user-specific changes).",
+        "correct_approach": "Make time shift conditional (at least by daytype, ideally by user cluster) and fit a gap model conditioned on time-of-day or previous category (as allowed by blueprint). Replace hard budget compression with a forward scheduling model: sample a normalized set of inter-visit proportions (Dirichlet over remaining time) then scale to fit the day, preserving shape while ensuring feasibility.",
+        "key_insight": "Feasibility clamping after independent gap sampling often reshapes the time distribution; generate time structure in a constraint-aware way rather than fixing it post hoc.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "distance-metric-unstable-due-to-high-coordinate-missingness": {
+      "meta_info": {
+        "token_count": 295,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "radius_of_gyration_error metric requires POI lat/lon; handle missing POIs by excluding those visits",
+          "radius_of_gyration_error definition"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "trip_distance_wasserstein=0.5255; diagnostics show gt_missing_step_fraction≈0.70 vs sim_missing_step_fraction≈0.62"
+        },
+        "error_identification": "Trip distance Wasserstein is moderate (0.525) but computed under severe coordinate missingness mismatch between GT and sim, making it noisy and hard to optimize reliably.",
+        "root_cause_analysis": "Evaluator mixes paired-step distances when possible, else falls back to marginal steps. With ~70% GT step coordinate missingness and ~62% sim missingness, the set of scored steps differs systematically. This can bias the distance distribution comparison and create unstable gradients for calibration (random search may chase noise).",
+        "correct_approach": "Enforce identical missingness policy between GT and sim for this metric: compute distances only on POI tokens that have coordinates in both sequences under an explicit matching rule (e.g., align by step index and require both endpoints in both sequences), and if coverage drops below a threshold, report metric as NaN and exclude from objective for that trial with logged coverage. Alternatively, pre-filter days with sufficient coordinate coverage for distance scoring and calibrate distance only on those.",
+        "key_insight": "When a metric depends on optional metadata (coords), calibration becomes unreliable unless you control for missingness symmetry and log coverage/eligibility explicitly.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "calibration-search-too-small-for-6d-parameter-space": {
+      "meta_info": {
+        "token_count": 233,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "CalibrationController: \"black-box optimization\"",
+          "calibratable_parameters list"
+        ],
+        "code_refs": [
+          {
+            "symbol": "RandomSearchCalibrator.fit",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Calibration uses n_iters=15 for 6+ dimensional space; best objective on V_calib=3.054 vs V_test objective=2.935 (no obvious overfit, but likely under-search)."
+        },
+        "error_identification": "Overall performance is limited by weak calibration; 15 random trials is unlikely to find good settings across multiple interacting parameters.",
+        "root_cause_analysis": "RandomSearchCalibrator samples a wide hyper-rectangle for 6 core parameters plus multiple super-category multipliers, but only for 15 iterations. With stochasticity from sampling and noisy metrics (especially distance), the best-found point is likely far from optimal.",
+        "correct_approach": "Increase trials substantially (e.g., 200–1000) or switch to a more sample-efficient strategy while staying within current code’s constraints: (1) staged search—first tune stop_count_multiplier and start_time_shift, then distance/mix, then cat multipliers; (2) use low-discrepancy sampling (Halton/Sobol) implemented locally (no new deps) to cover space better than pure RNG.",
+        "key_insight": "High-dimensional calibration with noisy objectives needs either many trials or structured/staged search; small random searches mostly measure noise.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.4
+          },
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "missing-radius-of-gyration-metric": {
+      "meta_info": {
+        "token_count": 233,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "simulation_evaluation.metrics: radius_of_gyration_error",
+          "definition: \"Absolute/relative error between simulated and ground-truth daily radius of gyration computed from POI coordinates\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "simulation_metrics does not include 'radius_of_gyration_error'; instead reports 'trip_distance_wasserstein'."
+        },
+        "error_identification": "Blueprint requires radius_of_gyration_error, but evaluation outputs a different mobility-radius proxy (trip_distance_wasserstein). This makes results non-comparable to the spec and can mask spatial errors.",
+        "root_cause_analysis": "Evaluator implements step-distance Wasserstein (paired/marginal) rather than computing daily radius of gyration from POI coordinates, which the blueprint explicitly requires.",
+        "correct_approach": "In Evaluator.compute_metrics, replace or add a radius-of-gyration calculation per (user, day): join each visit POI to (lat, lon) via dataset.poi_by_token, exclude visits missing coords per blueprint, compute gyration radius for gt and sim per day, then aggregate absolute/relative error across days. Keep trip_distance_wasserstein optional but do not substitute it for the required metric.",
+        "key_insight": "Do not swap evaluation metrics for convenient proxies: implement required metrics exactly (or emit both with clear names) to avoid optimizing the wrong objective.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "missing-true-blueprint-metrics-stopcount-mae-time-emd-category-jsd-poi-recallk": {
+      "meta_info": {
+        "token_count": 330,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "simulation_evaluation.metrics: stop_count_mae, category_mix_jsd, time_of_day_emd, poi_topk_recall",
+          "comparison_method: \"Compute metrics on the 2021 validation split for each calibration trial\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "TIME_BIN_MINUTES",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Reported metrics are: category_share_mae, stop_count_abs_mean_error, stop_count_kl, tod_jsd_avg, topk_poi_recall, transition_divergence, trip_distance_wasserstein. Blueprint metric names/definitions differ (stop_count_mae, category_mix_jsd, time_of_day_emd, poi_topk_recall)."
+        },
+        "error_identification": "Even when execution succeeds, calibration/evaluation is being performed on a different metric set than the blueprint defines, which risks tuning toward the wrong behaviors and makes the outputs non-compliant.",
+        "root_cause_analysis": "Evaluator defines and optimizes non-blueprint metrics (category_share_mae, stop_count_kl, tod_jsd_avg) and uses 15-minute JSD over time bins instead of an EMD over minutes-of-day; also uses recall over first K simulated visits rather than the blueprint’s set-based day recall@K definition with explicit K choice.",
+        "correct_approach": "Align metrics to blueprint definitions: (1) rename/emit stop_count_mae as mean(|sim_count-gt_count|) (current stop_count_abs_mean_error already matches but name mismatches); (2) compute category_mix_jsd directly on fine categories or super-categories as specified (current js_divergence over fine categories exists but not surfaced as the main metric); (3) replace tod_jsd_avg with time_of_day_emd using minutes-of-day distributions (can reuse wasserstein_1d on minutes lists or hist CDF EMD); (4) implement poi_topk_recall as set-based recall@K per day using simulated POI set (not prefix-only), then average.",
+        "key_insight": "Calibration objectives must match the spec’s metric definitions (not just “similar” statistics), otherwise optimization will produce good-looking numbers that don’t satisfy the actual task.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          }
+        ]
+      }
+    },
+    "ood-context-window-backfill-violates-blueprint": {
+      "meta_info": {
+        "token_count": 221,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "execution step 5: \"construct a 7-day context window ... may backfill from late 2020\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._context_last_poi",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.context_features",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Not directly logged, but context_features uses max_backfill_days=30; blueprint allows backfill from late 2020 (no 30-day cap)."
+        },
+        "error_identification": "The OOD context rule is implemented with a hard 30-day backfill cap, which can prevent required backfill from late 2020 for early-2021 targets and reduce context usefulness.",
+        "root_cause_analysis": "MobilitySimulator._context_last_poi and context_features apply max_backfill_days=30 when the 7-day window is empty. The blueprint explicitly allows backfilling from late 2020 (potentially more than 30 days) as long as days are strictly earlier than the target day.",
+        "correct_approach": "Change backfill logic: when the 7-day window has no usable days, search backwards without a fixed 30-day limit but stop once you have context_days distinct prior days (and optionally log how far you had to backfill). Ensure the search never includes target_date or future days (already satisfied).",
+        "key_insight": "OOD context windows need deterministic, spec-compliant backfill rules; arbitrary caps create silent distribution shifts and undermine personalization.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.45
+          },
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.15
+          },
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.15
+          }
+        ]
+      }
+    },
+    "poi-recall-extremely-low-from-unconditioned-poi-choice-and-huge-candidate-space": {
+      "meta_info": {
+        "token_count": 320,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "baseline_poi_choice_model: \"Given chosen category, choose POI via mixture of personal popularity and distance-decay\"",
+          "outputs/metrics: poi_topk_recall"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.11156069364161895 on V_test; sample trajectories show many plausible-but-random POIs per day and frequent use of high-entropy categories like Convenience Store with many POIs."
+        },
+        "error_identification": "POI overlap with ground truth is very low (recall@5 ~0.11), indicating POI selection is not sufficiently concentrated on each user’s likely POIs for the day.",
+        "root_cause_analysis": "In Resident.simulate_day, POI choice uses a very large candidate pool per fine category (ctx_top_fc + user_top_fc + global_top_fc + catalog_sample). For high-cardinality fine categories, even a preference-weighted sampler spreads probability mass across too many POIs, especially when context probabilities are sparse/limited. Additionally, recall is computed on simv[:k_eff] only, so later-day POIs never contribute.",
+        "correct_approach": "Tighten POI candidate generation and concentrate mass: (1) cap candidate pool size aggressively per step (e.g., top-N from user_top_fc + ctx_top_fc + global_top_fc, no large catalog_sample unless needed); (2) add a stronger per-user anchor/regular POI prior (e.g., include baseline.poi_pref and/or anchor_pois more often for first/last stops); (3) adjust evaluation to set-based day recall@K (blueprint) so any of the day’s K POIs can match; (4) log candidate_pool_size and entropy of POI weights per step to confirm concentration.",
+        "key_insight": "For POI-level recall tasks, controlling candidate set size is as important as weighting—high-cardinality categories require pruning/structuring to avoid probability dilution.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-error-high-from-weak-2021-shift-model-and-limited-stopcount-support": {
+      "meta_info": {
+        "token_count": 292,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "calibratable_parameters: theta_stop_count_multiplier",
+          "policy_form: \"Sample stop_count ... perturbed by abnormal shift\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident._tilt_count_pmf_to_target_mean",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.75 (V_test). Calibration best theta_stop_count_multiplier≈0.889, yet MAE remains large."
+        },
+        "error_identification": "Daily stop counts are off by ~1.75 visits on average, suggesting the generator’s stop-count distribution doesn’t match 2021 well even after calibration.",
+        "root_cause_analysis": "Stop counts are sampled by tilting a per-user baseline PMF that likely has limited support (only counts observed in 2019–2020). When 2021 has systematically higher/lower counts outside that support, tilting cannot reach those values. The context blending only uses avg_visits_per_day (scalar) and only 25% weight, which may be too weak to correct.",
+        "correct_approach": "Expand and smooth stop-count support and strengthen 2021 adjustment: (1) build stop_count PMF with added support around observed counts (e.g., include +/-2 around observed keys with small prior mass) so tilting can move; (2) in simulate_day, condition stop count on day_type and context distribution (not just mean), e.g., derive a context PMF from window days and blend PMFs (baseline vs context) before applying theta_stop_count_multiplier; (3) log gt vs sim count histograms by user to detect support mismatch.",
+        "key_insight": "If you calibrate a multiplier on a discrete outcome, ensure the base distribution has enough support; otherwise optimization can’t express the needed shift.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "evaluation-recall-uses-prefix-not-day-set": {
+      "meta_info": {
+        "token_count": 210,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "poi_topk_recall: \"... POIs appearing in the simulated day (set-based)\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.11156069364161895; code uses simv[:k_eff] then set(), not a set over the whole simulated day with a defined K rule."
+        },
+        "error_identification": "Recall@K is computed only on the first K simulated visits, which penalizes simulations where matching POIs occur later in the day and deviates from the spec’s set-based day recall concept.",
+        "root_cause_analysis": "Evaluator.compute_metrics defines sim_set from simv[:k_eff], which is prefix-based. Blueprint defines recall based on POIs “appearing in the simulated day” (set-based) with K fixed by design (e.g., 5 or length).",
+        "correct_approach": "Compute recall using the set of POIs from the whole simulated day, but cap the set size to K via a clear rule (e.g., take top-K unique POIs by visit order, or by frequency, or simply set(simv) and define K=min(K,|sim_set|) consistently). Match blueprint language and document the K rule in outputs.",
+        "key_insight": "Metric definitions shape what the simulator learns; prefix-based recall silently encourages ordering hacks rather than true day-level overlap.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "missing-2021-validation-calibration-as-separate-output": {
+      "meta_info": {
+        "token_count": 254,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "outputs: calibrated_parameters, evaluation_results_on_validation",
+          "comparison_method: calibrate on 2021 validation split, report final performance on held-out 2021 test split"
+        ],
+        "code_refs": [
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Code labels evaluation_results_on_validation but evaluates on splits.test_days_by_user (V_test) and calls it 'validation_test_rollout'."
+        },
+        "error_identification": "Outputs/labels are confusing relative to blueprint: evaluation_results_on_validation is actually computed on the held-out 20% (V_test), while calibration uses V_calib. This risks misreporting and makes it hard to verify the required protocol.",
+        "root_cause_analysis": "In main(), the code calibrates on splits.calib_days_by_user then computes evaluation_results written to evaluation_results_on_validation.json using splits.test_days_by_user, while naming it validation. Blueprint expects explicit validation (for tuning) and a separate held-out test report.",
+        "correct_approach": "Rename artifacts and add the missing report(s): (1) write calibration-set metrics summaries for V_calib (optional but clarifying); (2) write a separate evaluation_results_on_test.json (or rename existing file) for V_test; (3) ensure the JSON includes exact split identifiers and counts for both splits, matching blueprint wording.",
+        "key_insight": "Strict split hygiene includes clear artifact naming—mislabeling validation vs test can invalidate the experimental protocol even if the code is correct.",
+        "metric_links": []
+      }
+    },
+    "runtime-too-slow-from-full-rollout-per-iteration": {
+      "meta_info": {
+        "token_count": 213,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "calibration_loop: \"Residents simulate trajectories ... outputs returned for scoring\" (designed; does not require full sweep each iteration)"
+        ],
+        "code_refs": [
+          {
+            "symbol": "RandomSearchCalibrator.fit",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.rollout",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "execution_time=247.218487s; calibration simulates 2647 user-days per iter * 15 iters (~39,705 user-days) plus test rollout."
+        },
+        "error_identification": "Calibration is expensive (minutes) because each trial simulates the entire V_calib set; this limits calibration_iters and exploration, which likely hurts achievable metric quality.",
+        "root_cause_analysis": "RandomSearchCalibrator.fit calls simulator.rollout on all calib user-days every iteration, with no subsampling, caching reuse, or early rejection. This is algorithmically O(iters * |V_calib|).",
+        "correct_approach": "Implement staged evaluation in fit(): evaluate candidates on a deterministic subsample of user-days first (e.g., fixed 10–20%), keep top-M, then refine on full V_calib; or implement early stopping if partial objective exceeds best_obj by margin. Keep determinism by seeding the subsample selection from the calibrator seed.",
+        "key_insight": "When calibration is black-box, reduce per-trial cost with deterministic subsampling/Successive Halving; better exploration often beats minor model tweaks.",
+        "metric_links": []
+      }
+    },
+    "stopcount-mae-high-stopcount-model-misspec": {
+      "meta_info": {
+        "token_count": 553,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "stop_count_mae: Mean absolute error between simulated and ground-truth number of visits per (user, day).",
+          "theta_stop_count_multiplier range [0.5, 1.8]"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident._tilt_count_pmf_to_target_mean",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.context_features",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.9349 (very large); stop_count_kl=0.0686 (distribution close-ish but per-day errors remain high)"
+        },
+        "error_identification": "Daily visit counts are badly mismatched: mean absolute error ~1.93 visits/day, despite relatively small stop-count distribution KL (~0.069). This indicates per-user/per-day heterogeneity is not being captured (counts may match globally but not at the right days/users).",
+        "root_cause_analysis": "Stop-count generation is effectively driven by (a) baseline PMF from 2019–2020 and (b) a weakly blended context PMF and mean (ctx_avg_visits) from the last 7 prior days; then a single global multiplier is applied and the PMF is exponentially tilted. This has two problems: (1) context_features() aggregates only across the last N prior *days with visits* without conditioning on weekday/weekend robustness beyond a small dt split and without using 2021-only context explicitly as a stronger signal; (2) tilting to a target mean does not match dispersion/shape (it can still choose wrong counts often), and the multiplier is global (no user/day-type adaptive mapping).",
+        "correct_approach": "Improve the stop-count mechanism with shape-aware and context-aware calibration:\n1) In MobilitySimulator.context_features(), return separate stop-count PMFs for (weekday, weekend) and also a combined PMF over counts from the selected window (already partially done) but also return the empirical mean/variance per daytype.\n2) In Resident.simulate_day(), replace the current 0.35 blend + mean-tilt with: blended_pmf = normalize((1-a-b)*baseline_pmf + a*context_pmf_daytype + b*global_2021_calib_pmf_daytype) where global_2021_calib_pmf_daytype is computed once from V_calib ground truth counts (allowed for calibration objective building; do NOT use V_test). If you cannot add new stored structures, at least strengthen alpha_ctx dynamically when ctx.days_used is high.\n3) Add a second calibratable parameter for dispersion (e.g., temperature on the PMF or power transform p^tau) implemented within existing shift_params dict (without new files): apply pmf[k] ** tau then renormalize; calibrate tau in a bounded range. This keeps schema stable (still in calibrated_parameters.json).",
+        "key_insight": "If per-day MAE is high but distribution-level KL is low, the generator is matching marginals but missing conditional structure; add conditioning/dispersion controls rather than only mean scaling.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.8
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.2
+          }
+        ]
+      }
+    },
+    "poi-recall-low-overly-diffuse-poi-choice": {
+      "meta_info": {
+        "token_count": 499,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "poi_topk_recall: recall@K of ground-truth POIs appearing in the simulated day (set-based)",
+          "baseline_poi_choice_model: mixture of personal popularity and distance-decay from current POI"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.context_features",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.1408 (very low)"
+        },
+        "error_identification": "POI overlap with ground truth is poor (recall@5 ~0.14), meaning simulated days rarely include the true POIs even if categories/timing are reasonable.",
+        "root_cause_analysis": "POI choice is still too broad and under-conditioned: candidates are built from context top POIs (per finecat), user top POIs (per finecat), global top (per finecat), plus a random-ish catalog sample; then a mixture weight heavily favors preference (w_pref often calibrated near 0.94) but that preference is largely 2019–2020 and not updated for 2021 abnormal behavior. Also, the simulator first samples super-categories and then fine categories, which can drift from ground-truth fine categories; any category mismatch collapses POI recall even if POI selection within the wrong fine category is strong.",
+        "correct_approach": "Make POI choice more faithful to user anchors and recent context while reducing candidate dilution:\n1) In Resident.simulate_day(), before building candidates for each fine category, intersect candidates with the user's historically visited POIs for that fine category when available (user_top_fc already computed); if user_top_fc is non-empty, drop catalog_sample entirely and cap global_top_fc smaller.\n2) Add a strong 'anchor return' behavior: if the fine category resembles Home (already detected in baseline anchor extraction), then force-select from anchor_pois with high probability; this boosts POI recall for ubiquitous anchors.\n3) Tighten the hierarchy: when first visit's POI is fixed to start_poi, also set its fine category as the first finecat (override chosen_fc for idx==0 when start POI has known finecat). This reduces early category mismatch and cascaded POI mismatch.\n4) Calibrate w_pref and dist_scale jointly but constrain w_pref away from extreme 1.0 (e.g., cap at 0.85) to let distance/context rescue when baseline preference is stale under 2021 shift.",
+        "key_insight": "POI recall is dominated by category correctness and candidate-set sharpness; fix the first-stop category consistency and shrink candidate pools before tuning weights.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "time-of-day-shift-uses-wrong-bin-resolution-and-metric-alias": {
+      "meta_info": {
+        "token_count": 374,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "time_of_day_emd: Earth Mover's Distance between simulated vs ground-truth distributions of visit times ... histogram over minutes-of-day",
+          "time_step: minutes; output HH:MM:SS by rounding/stochastic seconds jitter"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "_time_hist",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Resident.simulate_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.6792 (units are hours in code); diagnostics show time_of_day_emd_minutes=40.75"
+        },
+        "error_identification": "Time-of-day discrepancy remains material. The reported key 'tod_jsd_avg' is actually time-of-day EMD in hours (code divides minutes by 60), which is a naming/interpretation mismatch that makes calibration weights hard to reason about and can mislead downstream analysis.",
+        "root_cause_analysis": "Evaluator.compute_metrics computes Wasserstein distance on raw minute-of-day samples (fine), but then stores it under a legacy key 'tod_jsd_avg' after converting to hours. This contradicts the blueprint metric name/units and blurs what the objective is optimizing. Additionally, start times are sampled from 15-minute hist bins plus a uniform minute within the bin; this coarsening can prevent matching minute-level EMD as specified.",
+        "correct_approach": "Align metric naming/units and optionally improve start-time granularity:\n1) Keep output schema keys, but in simulation_metrics set tod_jsd_avg to the minute-based EMD (not hours), and if needed scale objective_weights accordingly. (No new metric keys required; only units change.)\n2) Alternatively (safer): keep tod_jsd_avg as-is but add explicit meta fields (already partially present) and adjust objective_weights to match hour-units; ensure consistency across calibration and evaluation.\n3) Reduce TIME_BIN_MINUTES from 15 to 5 (or 1) for baseline start-time histogram and sampling to better match minute-level EMD, keeping output HH:MM:SS jitter unchanged.",
+        "key_insight": "Never hide unit conversions behind legacy metric names; calibration will optimize the wrong scale and comparisons become meaningless.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "trip-distance-metric-miswired-to-radius-of-gyration": {
+      "meta_info": {
+        "token_count": 304,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "radius_of_gyration_error: ... computed from POI coordinates",
+          "metrics list includes radius_of_gyration_error (not trip_distance_wasserstein)"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.objective",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "trip_distance_wasserstein=2.7313 while diagnostics legacy_trip_distance_wasserstein_km=1.9911 and radius_of_gyration_error_km=2.7313"
+        },
+        "error_identification": "The reported 'trip_distance_wasserstein' metric is actually radius-of-gyration error, and the computed trip-distance Wasserstein is only present in diagnostics. This contaminates the optimization target and makes the metric name misleading.",
+        "root_cause_analysis": "In Evaluator.compute_metrics(), simulation_metrics sets 'trip_distance_wasserstein' to radius_of_gyration_error instead of trip_distance_wasserstein. This is a direct wiring bug (wrong variable assigned). The objective then optimizes this mislabeled value.",
+        "correct_approach": "Fix the mapping:\n1) In Evaluator.compute_metrics(), set simulation_metrics['trip_distance_wasserstein'] = trip_distance_wasserstein (the computed Wasserstein over step distances), not radius_of_gyration_error.\n2) If you must keep optimizing radius_of_gyration_error for blueprint compliance but cannot add new metric keys, then swap: use trip_distance_wasserstein for the legacy key and ensure radius-of-gyration stays only in diagnostics, and update objective_definition text accordingly. The cleanest is to optimize the correct legacy key and keep blueprint metrics in diagnostics/meta.",
+        "key_insight": "Metric-key compatibility hacks must be audited with a unit test that asserts each output key equals the intended computed quantity.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "ood-context-window-definition-deviates-from-calendar-7day": {
+      "meta_info": {
+        "token_count": 369,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Online OOD context window rule: For each 2021 target day, construct a 7-day context window using only days strictly earlier than the target day; ... may backfill from late 2020; never use target-day or future days."
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator.context_features",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._context_last_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error high and topk_poi_recall low are consistent with weak/biased context conditioning"
+        },
+        "error_identification": "Context conditioning may be systematically biased: the implementation uses the last 7 prior days-with-visits rather than a strict calendar 7-day window, and _context_last_poi ignores context_days entirely (always last prior day with visits). This can over-represent sparse histories and reduce responsiveness to recent changes.",
+        "root_cause_analysis": "MobilitySimulator.context_features() selects prior[-context_days:] i.e., last N observed days with visits, not the set of days in (target_date-7, target_date) intersection. Blueprint wording implies a 7-day context window by calendar days (with possible backfill if none). Also, _context_last_poi() does not use context_days to restrict to a window at all, so it can jump far back even when recent days exist but were excluded due to missing visits strings.",
+        "correct_approach": "Implement the blueprint semantics more literally while preserving backfill:\n1) Build candidate prior days as those with target_date-7 <= date < target_date (calendar window). Use only days strictly earlier.\n2) If that calendar window yields zero days with visits, backfill by taking the most recent days-with-visits before target_date (current behavior) until you have up to 7.\n3) Apply the same rule in _context_last_poi(): prefer last POI within the calendar window; if none, backfill to last available prior day.",
+        "key_insight": "OOD context windows should be defined in calendar time first; only then backfill to handle missingness—otherwise you inadvertently condition on arbitrary long-history slices.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "main-executes-on-import-causing-integration-risk": {
+      "meta_info": {
+        "token_count": 172,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [],
+        "code_refs": [
+          {
+            "symbol": "module top-level",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "N/A (execution succeeded here, but this is a stability/integration hazard)"
+        },
+        "error_identification": "The script calls main() unconditionally at import time. In many runners this can cause unintended execution, double runs, or inability to import for testing.",
+        "root_cause_analysis": "At the end of the file: `# Execute main ... main()` is not guarded by `if __name__ == '__main__':`. This is a standard Python entrypoint bug and can break evaluation harnesses that import modules.",
+        "correct_approach": "Wrap the call in a standard guard:\n- Replace the final `main()` with:\n  if __name__ == '__main__':\n      main()\nIf the sandbox wrapper requires execution, it should invoke the script directly rather than importing it.",
+        "key_insight": "Always guard side-effectful entrypoints; evaluation systems often import modules and expect zero execution on import.",
+        "metric_links": []
+      }
+    }
+  },
+  "insights": {
+    "llm-review-pipeline-not-in-blueprint": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 40,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Keep generated code tightly aligned to the simulation blueprint; delete unrelated agent pipelines to avoid scope drift and accidental dependency/runtime issues.",
+        "metric_links": []
+      }
+    },
+    "metrics-mismatch-vs-blueprint-required-keys": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 35,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Calibration is only as good as the metric contract: match blueprint metric names/definitions exactly or you will optimize the wrong thing.",
+        "metric_links": []
+      }
+    },
+    "stop-count-model-causes-large-stop-count-errors": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 48,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "For discrete count targets, scaling a sampled count is a weak surrogate; model the count distribution directly (and condition on covariates like day-of-week) to reduce both mean error and KL.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.55
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.45
+          }
+        ]
+      }
+    },
+    "poi-choice-uses-truncated-category-candidate-list": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 49,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Never truncate candidate sets with an arbitrary fixed prefix; candidate generation must preserve high-probability items under the agent’s preference/transition model or you cap achievable recall.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-transition-model-support-too-narrow": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 49,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Sparse POI-to-POI transitions need a principled backoff (to category transitions or preferences); using a near-zero fallback silently disables the feature and degrades downstream choice quality.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.65
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.35
+          }
+        ]
+      }
+    },
+    "time-of-day-alignment-mechanism-too-weak-and-per-category-jsd-missing": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 55,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Time realism improves when you model forward-looking time increments (gaps) rather than sampling absolute target times and snapping; always expose per-segment diagnostics (per-category JSD) to localize timing failures.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "day-of-week-signal-not-used": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 44,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "If the spec includes an exogenous covariate (day-of-week), it must be threaded through parsing → priors → simulation; otherwise you average over regimes and degrade realism.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "stop-count-model-mismatch-causes-large-events-per-day-errors": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 55,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Never sample a fixed plan length if the simulator can silently truncate; either (a) enforce feasibility before committing events or (b) model termination explicitly so calibration can control the events/day distribution.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.55
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.45
+          }
+        ]
+      }
+    },
+    "time-of-day-jsd-inflated-by-using-arrival-times-not-start-times": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 44,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "When a metric is defined on ‘start times’, don’t evaluate ‘arrival after travel/dwell’—align the simulator’s emitted timestamps and evaluator to the same semantic definition.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "main-executes-on-import-violates-blueprint-output-contract-and-reusability": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 29,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "Simulation entrypoints must be import-safe; always use an __main__ guard so orchestration is explicit and testable.",
+        "metric_links": []
+      }
+    },
+    "calibration-optimizes-proxy-subset-that-does-not-track-full-validation-for-tod": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 46,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If you calibrate on a subset, it must preserve the validation distribution of the metrics you optimize (stratify or average across resamples), otherwise selection will not transfer.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-choice-overexplores-global-category-pois-reducing-preference-recall": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 54,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Candidate generation should be preference-preserving by construction (always include top preferred items), and exploration should be explicit and parameterized—not an implicit side effect of random candidate pools.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "no-2019-2020-output-schema-mismatch": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 42,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Separate “string-level format validity” from “file/schema validity”: validate and emit the exact top-level JSON schema required by the dataset, not an enriched wrapper.",
+        "metric_links": []
+      }
+    },
+    "poi-choice-lateness-penalty-wrong-sign": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 46,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "Any utility term mixing “duration” and “absolute time-of-day” is a red flag—ensure units match (arrival_time vs target_time) or calibration will mask the bug by truncation artifacts.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.55
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.45
+          }
+        ]
+      }
+    },
+    "stop-count-feasibility-heuristic-too-coarse": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 45,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "If you already have a stop-count model, don’t pre-truncate it with a global average-time heuristic; enforce feasibility during sequential generation using realized travel+dwell.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "distance-distribution-too-tight-missing-dist-fallback": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 47,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Coordinate-missing handling affects both behavior (via utility) and evaluation (via dropped steps). Always measure missingness and use a data-derived fallback, not a hardcoded constant.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "time-of-day-model-uses-category-start-hist-not-activity-starts": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 42,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Absolute time-of-day priors are not sufficient for categories that are transition-driven; model gaps/relative timing and use absolute histograms as a soft constraint.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-mismatch-high": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 38,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If dwell is learned from inter-event gaps, you must not also add full travel time on top—otherwise the day budget collapses and stop counts truncate.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "time-of-day-jsd-driven-by-smoothing-floor": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 34,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Evaluation smoothing should prevent zeros without flattening distributions; large pseudocounts can hide errors and mislead calibration.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-choice-ignores-distance-when-coords-missing": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 33,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Missing-coordinate handling must be consistent between generation and evaluation; otherwise you optimize against a shifted support.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "implausible-nighttime-starts-and-duplicates": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 45,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Aggregate time-of-day metrics can look acceptable while individual trajectories are implausible; add simple constraints (active window, repeat penalty) to stabilize micro-dynamics.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "no-user-feedback-to-triage": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 37,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When user feedback is absent, proactively emit interpretable diagnostics that directly map to blueprint metrics to accelerate the next iteration.",
+        "metric_links": []
+      }
+    },
+    "noncompliant-output-format-not-single-1921y-json": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 78,
+        "usage_count": 2,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Strict schema tasks require the primary artifact to match the reference file structure exactly—wrapping metadata breaks downstream consumers even if strings are valid. Treat schema-compatibility as a first-class contract: produce a dedicated ‘ground-truth-shaped’ artifact, and put diagnostics in separate files.",
+        "metric_links": []
+      }
+    },
+    "disallowed-llm-review-pipeline-in-mobility-codebase": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 36,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Keep simulation code minimal and blueprint-scoped; unrelated integrations should live behind separate entrypoints to avoid accidental coupling.",
+        "metric_links": []
+      }
+    },
+    "distance-missingness-skews-step-distance-metric": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 40,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Distance-based metrics are only meaningful when coordinate coverage is comparable; always quantify missingness and gate calibration/interpretation accordingly.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poor-time-of-day-fit-in-several-categories": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 56,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If time-of-day is an evaluation target, avoid layered heuristics (clamps/late penalties) that silently re-shape the sampled time distribution; keep timing as a primary sampled variable with feasibility handled by resampling.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "low-topk-poi-recall-indicates-weak-personalization": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 48,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When the item universe is huge, don’t smooth over the full global support; define a principled candidate/support set so preference learning remains identifiable and recall doesn’t collapse.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "transition-model-underweighted-by-construction": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 38,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Don’t reuse ‘smoothing’ as a behavioral mixture control; separate statistical smoothing from decision-policy mixing to keep calibration interpretable.",
+        "metric_links": [
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.4
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "trajectory-timestamps-not-strictly-increasing-causes-time-bunching": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 71,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "If output format allows non-decreasing times but realism/metrics need separation, always enforce a minimum increment (e.g., +1 minute) between successive events and terminate the day when the schedule cannot remain feasible—never ‘clamp’ multiple events to the same boundary minute.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "stop-count-model-misspecified-uses-only-start-times-as-dwell-proxy": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 46,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Don’t infer dwell from start-to-start gaps unless you explicitly model travel and handle zero-gap artifacts; otherwise you’ll miscalibrate both stop counts and time-of-day placement.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "category-time-of-day-fit-poor-in-specific-categories": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 48,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "A single global time-of-day weight is rarely sufficient; use adaptive backoff based on category data volume and treat ‘home’ as a special anchor process instead of a normal category histogram.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "topk-poi-recall-low-indicates-insufficient-personalization": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 45,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Personalization metrics degrade when exploration is added as a broad tail; keep exploration as a small, explicit budget and never flatten preference rankings with uniform bonuses.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "distance-metric-interpretability-broken-by-gt-missingness-skew": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 51,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When a metric drops missing values asymmetrically between GT and SIM, you must align supports (or condition evaluation on comparable subsets), otherwise the metric can be ‘good’ while the behavior is not.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "main-executes-on-import-causes-integration-fragility": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 41,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "Simulation pipelines should be import-safe; always guard top-level execution so components can be reused, tested, and instrumented without triggering a full run.",
+        "metric_links": []
+      }
+    }
+  }
+}

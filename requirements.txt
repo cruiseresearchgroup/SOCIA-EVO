@@ -86,6 +86,7 @@ websockets==15.0.1
 
 # NLP and text processing
 nltk==3.9.1
+sentence-transformers>=2.2.0
 
 # Google Cloud services
 google-cloud-aiplatform==1.89.0

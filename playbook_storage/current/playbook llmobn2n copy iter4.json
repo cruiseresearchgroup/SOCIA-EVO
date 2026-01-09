@@ -1,0 +1,1259 @@
+{
+  "playbook_metadata": {
+    "version": "v0.1",
+    "project_name": "",
+    "last_updated_time": "2026-01-03T17:19:36.353902",
+    "last_updated_iteration": "4"
+  },
+  "strategies": {
+    "llm-review-pipeline-not-in-blueprint": {
+      "meta_info": {
+        "token_count": 199,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "low",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "execution: Two supported generation modes (A) Calibrated generative sequential model ... (B) Optional LLM pipeline (Pattern/Persona/Motivation)",
+          "objective: Simulate daily mobility trajectories ..."
+        ],
+        "code_refs": [
+          {
+            "symbol": "MemoryAgent/PlanningAgent/ReviewAuthor/call_gpt5_with_responses_api",
+            "lines": "L30-L140 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Execution succeeded; this is an architecture/scope mismatch rather than a metric failure."
+        },
+        "error_identification": "Code contains an unrelated product-review LLM pipeline and OpenAI client scaffolding that is never used by the mobility simulator.",
+        "root_cause_analysis": "These classes/functions are not part of either blueprint Mode A (calibrated sequential model) or Mode B (Pattern/Persona/Motivation for mobility). Keeping unrelated LLM code increases maintenance risk and can confuse future iterations.",
+        "correct_approach": "Remove the review-focused LLM pipeline code paths entirely, or if an LLM mode is desired, replace with a mobility-specific Pattern/Persona/Motivation implementation that consumes TRAIN-only summaries and emits strict trajectory strings through TrajectoryStringFormatter.",
+        "key_insight": "Keep generated code tightly aligned to the simulation blueprint; delete unrelated agent pipelines to avoid scope drift and accidental dependency/runtime issues.",
+        "metric_links": []
+      }
+    },
+    "metrics-mismatch-vs-blueprint-required-keys": {
+      "meta_info": {
+        "token_count": 272,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "simulation_evaluation.metrics: events_per_day_distribution_distance",
+          "simulation_evaluation.metrics: step_distance_km_distribution_distance",
+          "simulation_evaluation.metrics: time_of_day_histogram_jsd_by_category"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "L560-L760 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Reported metrics are: category_share_mae, stop_count_abs_mean_error, stop_count_kl, tod_jsd_avg, topk_poi_recall, transition_divergence, trip_distance_wasserstein (do not match blueprint metric names)."
+        },
+        "error_identification": "Evaluation is not implementing the blueprint-specified metric set/names; instead it uses a different set (category_share_mae/topk_poi_recall/etc.). This makes calibration optimize a different objective than required by spec.",
+        "root_cause_analysis": "Evaluator.compute_metrics computes alternative metrics and the calibration controller optimizes those. Blueprint requires (at minimum) events_per_day_distribution_distance, step_distance_km_distribution_distance, and time_of_day_histogram_jsd_by_category.",
+        "correct_approach": "Refactor Evaluator to compute and output the blueprint metrics (including correct naming). Map existing internals: stop-count distribution distance (use Wasserstein/KL as allowed) -> events_per_day_distribution_distance; trip distances -> step_distance_km_distribution_distance; time-of-day JSD should be by category (return per-category and average) -> time_of_day_histogram_jsd_by_category. Ensure calibration objective uses ONLY these blueprint metrics on validation.",
+        "key_insight": "Calibration is only as good as the metric contract: match blueprint metric names/definitions exactly or you will optimize the wrong thing.",
+        "metric_links": []
+      }
+    },
+    "stop-count-model-causes-large-stop-count-errors": {
+      "meta_info": {
+        "token_count": 254,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "policy_form: (1) Determine planned number of events for the day (either directly modeled or via calibrated distribution).",
+          "calibratable_parameters: end_day_or_stop_count_params"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._sample_stop_count",
+            "lines": "L420-L430 (approx)"
+          },
+          {
+            "symbol": "RandomSearchCalibrator._sample_params",
+            "lines": "L760-L810 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=2.8758, stop_count_kl=1.4517"
+        },
+        "error_identification": "Stop counts are significantly miscalibrated: average stop count differs by ~2.88 and the distribution KL is high (1.45).",
+        "root_cause_analysis": "Stop counts are generated by multiplying a sampled historical count by a global scale (stop_count_scale) and rounding. This single-parameter scaling cannot match both mean and distribution shape across agents/days, and it ignores day-of-week/day-type effects mentioned in the blueprint.",
+        "correct_approach": "Replace scalar scaling with an explicit stop-count distribution model: fit per-agent (or hierarchical) discrete distribution on TRAIN (e.g., empirical PMF with smoothing) and sample directly; optionally condition on day-of-week. Keep stop_count_scale only as a minor global adjustment or remove it. If retaining calibration, calibrate distribution temperature or mixture with global PMF rather than a scale multiplier.",
+        "key_insight": "For discrete count targets, scaling a sampled count is a weak surrogate; model the count distribution directly (and condition on covariates like day-of-week) to reduce both mean error and KL.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.55
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.45
+          }
+        ]
+      }
+    },
+    "poi-choice-uses-truncated-category-candidate-list": {
+      "meta_info": {
+        "token_count": 237,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "policy_form: Choose specific POI using utility combining ... distance decay ... agent preferences"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "L470-L535 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.08696 (very low)"
+        },
+        "error_identification": "The simulator almost never visits agents’ true frequent POIs: top-k POI recall is ~0.087.",
+        "root_cause_analysis": "When a category has many POIs, candidates are truncated to the first 300 IDs in env.category_to_poi_ids without any ranking by agent preference, proximity, or transition likelihood. This can exclude an agent’s actual preferred POIs from consideration, making recall structurally impossible for dense categories.",
+        "correct_approach": "When subsampling candidates, sample/construct candidates using agent-informed scores: include all agent-seen POIs in that category (from priors.poi_prob keys) plus a proximity-based shortlist (closest N to current location/home) plus a small random exploration set. Only then compute utilities and softmax. Do not slice the first 300 deterministically.",
+        "key_insight": "Never truncate candidate sets with an arbitrary fixed prefix; candidate generation must preserve high-probability items under the agent’s preference/transition model or you cap achievable recall.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-transition-model-support-too-narrow": {
+      "meta_info": {
+        "token_count": 285,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "transition_model_params: Estimate personal and global transition probabilities ... with smoothing."
+        ],
+        "code_refs": [
+          {
+            "symbol": "learn_agent_priors (poi_trans_prob building)",
+            "lines": "L340-L420 (approx)"
+          },
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "L485-L520 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "transition_divergence=0.0281, topk_poi_recall=0.0870"
+        },
+        "error_identification": "Despite low category-level transition divergence, POI-level realism is poor (low POI recall), suggesting POI transition dynamics are not helping choose correct places.",
+        "root_cause_analysis": "poi_trans_prob is built only over seen_pois (= POIs observed in TRAIN for that agent). But _choose_poi may consider candidates outside seen_pois (all POIs in a category). For these, the transition term falls back to 1e-12, effectively removing transition structure and pushing the model toward preference-only or distance-only behavior. Combined with candidate truncation, this harms POI fidelity.",
+        "correct_approach": "Back off POI transitions with a smoothed mixture: if (prev_poi, poi_id) missing, use (prev_cat, cat) transition or category-conditioned POI preference (priors.poi_prob) rather than a near-zero constant. Alternatively, build category-level transition model only and avoid sparse POI->POI transitions unless you can build a broader support (e.g., top-M POIs per category per agent).",
+        "key_insight": "Sparse POI-to-POI transitions need a principled backoff (to category transitions or preferences); using a near-zero fallback silently disables the feature and degrades downstream choice quality.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.65
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.35
+          }
+        ]
+      }
+    },
+    "time-of-day-alignment-mechanism-too-weak-and-per-category-jsd-missing": {
+      "meta_info": {
+        "token_count": 291,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "time_of_day_priors_by_category: build histogram ... used for time-conditioned scheduling/choice",
+          "simulation_evaluation.metrics: time_of_day_histogram_jsd_by_category"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._choose_next_category",
+            "lines": "L435-L470 (approx)"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics (tod_jsd_avg)",
+            "lines": "L640-L705 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.0791"
+        },
+        "error_identification": "Time-of-day match is only moderate (tod_jsd_avg ~0.079), and evaluation does not provide per-category JSD required by blueprint.",
+        "root_cause_analysis": "Category choice uses tod_prob at current time bin and a sampled target minute, but only lightly penalizes misalignment (constant -2.0 * normalized abs diff). Arrival time is then forced by max(current+travel, target_min), which can jump arbitrarily and distort timing patterns. Also, evaluator reports only an average JSD without per-category breakdown demanded by the blueprint.",
+        "correct_approach": "Separate (a) selecting category given current time (use tod_prob only), and (b) scheduling the next event time using a learned inter-event gap model or category-specific start-time sampling anchored by current_time (e.g., sample a future minute from a conditional distribution over (minute-current_time) rather than absolute minute). In evaluation, output per-category JSD map plus the average, matching blueprint metric name/structure.",
+        "key_insight": "Time realism improves when you model forward-looking time increments (gaps) rather than sampling absolute target times and snapping; always expose per-segment diagnostics (per-category JSD) to localize timing failures.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "day-of-week-signal-not-used": {
+      "meta_info": {
+        "token_count": 179,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "exogenous_signals: day_of_week modulates category/time-of-day priors and transitions (weekday vs weekend)."
+        ],
+        "code_refs": [
+          {
+            "symbol": "learn_agent_priors / MobilitySimulator.simulate_one_day",
+            "lines": "L250-L560 (approx)"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=2.8758, tod_jsd_avg=0.0791"
+        },
+        "error_identification": "Model does not condition behavior on day type, likely contributing to stop-count and time-of-day mismatches.",
+        "root_cause_analysis": "Although the blueprint requires day-of-week modulation, the parsed DayLog does not store day-of-week, priors are not learned conditionally, and simulate_one_day ignores target_day’s weekday/weekend.",
+        "correct_approach": "Compute day_of_week from date during parsing and learn separate priors/histograms (and optionally stop-count PMFs) for weekday vs weekend (or full 7-day). At simulation time, select the appropriate conditional priors based on target_day.",
+        "key_insight": "If the spec includes an exogenous covariate (day-of-week), it must be threaded through parsing → priors → simulation; otherwise you average over regimes and degrade realism.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "stop-count-model-mismatch-causes-large-events-per-day-errors": {
+      "meta_info": {
+        "token_count": 392,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "metrics: 'events_per_day_distribution_distance'",
+          "policy_form step (1): 'Determine planned number of events for the day ... calibrated distribution.'",
+          "parameters: 'end_day_or_stop_count_params'"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._sample_stop_count",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "learn_agent_priors (stop_count_pmf_weekday/weekend)",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=4.6629; stop_count_kl=6.6557; (blueprint meta) events_per_day_distribution_distance=4.6629"
+        },
+        "error_identification": "The simulator produces the wrong number of events per day (mean absolute error ~4.66 events/day and a very large divergence in the stop-count distribution).",
+        "root_cause_analysis": "Stop counts are sampled from a per-agent PMF built from TRAIN days, but the generator then truncates the day whenever arrival>1439 or current_time>=1439, effectively censoring planned events. This creates a structural mismatch: calibration tries to match events/day by changing stop_count_scale, but the day-boundary truncation dominates the realized count. Additionally, the PMF support is capped to [1,50] and has no explicit end-of-day hazard; agents with longer travel/dwell are more likely to be truncated, skewing the distribution.",
+        "correct_approach": "Make realized stop-count control consistent with feasibility:\n- Track remaining time budget and sample the next event only if (expected travel+dwell) fits; otherwise end the day explicitly (hazard/termination step) rather than silent truncation.\n- Alternatively, switch from 'sample N then truncate' to 'sequential hazard' (end-day probability conditioned on time-of-day and day-type) so the events/day distribution emerges without hard truncation.\n- During calibration, optimize the blueprint metric events/day distribution distance directly (already computed) but ensure the generator can actually respond to stop_count_scale by removing censoring bias.",
+        "key_insight": "Never sample a fixed plan length if the simulator can silently truncate; either (a) enforce feasibility before committing events or (b) model termination explicitly so calibration can control the events/day distribution.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.55
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.45
+          }
+        ]
+      }
+    },
+    "time-of-day-jsd-inflated-by-using-arrival-times-not-start-times": {
+      "meta_info": {
+        "token_count": 347,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "metric: 'time_of_day_histogram_jsd_by_category' defined on 'start-time histograms (minute-of-day)'",
+          "policy_form: '(2) sample a target_start_time for that category' and align scheduling"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator.simulate_one_day (arrival = max(current_time+travel, target_min))",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "Evaluator.compute_metrics (tod histogram uses VisitEvent.minute)",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.0912 (notably high vs other metrics); per-category JSD spikes e.g., Professional & Other Places=0.1426, Shop & Service=0.1326"
+        },
+        "error_identification": "Time-of-day alignment is poor (average JSD ~0.091; several categories >0.12), indicating simulated visit times by category do not match validation start-time patterns.",
+        "root_cause_analysis": "The simulator schedules a category-specific 'target' minute, but then emits event timestamps as arrival times after travel and after being constrained by current_time. The blueprint metric is defined over start times of activities, but the simulator conflates (arrival/start) with a value heavily affected by travel-time and previous dwell. This shifts distributions later and compresses late-day events near 23:xx, inflating JSD.",
+        "correct_approach": "Represent and evaluate the same concept as the blueprint:\n- In simulation, treat the histogram-conditioned time as the activity start time, then compute travel to ensure arriving by that start time (or resample/adjust if infeasible). If late, either shift the start time with a penalty or choose a closer POI.\n- In data parsing/evaluation, confirm validation timestamps represent starts (as implied) and compare to simulated start times, not post-travel delayed times.\n- Add a simple feasibility loop: if chosen POI cannot be reached by target_min, reselect POI (closer) or resample target_min within remaining day.",
+        "key_insight": "When a metric is defined on ‘start times’, don’t evaluate ‘arrival after travel/dwell’—align the simulator’s emitted timestamps and evaluator to the same semantic definition.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "main-executes-on-import-violates-blueprint-output-contract-and-reusability": {
+      "meta_info": {
+        "token_count": 174,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "outputs: 'trajectory_string_outputs ... strict 1921Y.json format' (implies formatter-only emission and controlled orchestration)"
+        ],
+        "code_refs": [
+          {
+            "symbol": "module bottom-level execution",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "execution_status=success, but code ends with unconditional `main()`"
+        },
+        "error_identification": "The script unconditionally calls main() at import time, making it hard to reuse as a library and risking unintended execution in evaluation harnesses.",
+        "root_cause_analysis": "Despite the comment about an __name__ guard, the file ends with `main()` without `if __name__ == '__main__':`. This is a control-flow bug that can break integration scenarios (e.g., importing for tests/metric-only runs) and can cause duplicate runs.",
+        "correct_approach": "Wrap the call with a proper guard:\n- Replace the bottom `main()` with:\n  `if __name__ == '__main__':\n       main()`\nThis preserves CLI behavior and prevents side effects on import.",
+        "key_insight": "Simulation entrypoints must be import-safe; always use an __main__ guard so orchestration is explicit and testable.",
+        "metric_links": []
+      }
+    },
+    "calibration-optimizes-proxy-subset-that-does-not-track-full-validation-for-tod": {
+      "meta_info": {
+        "token_count": 323,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "execution: 'tune ... by minimizing validation loss on VALIDATION split (filtered 2019-2020)'"
+        ],
+        "code_refs": [
+          {
+            "symbol": "RandomSearchCalibrator.fit (proxy_validation_subsample vs full_validation_rescore)",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Calibration log: proxy best objective at iter 24 had tod_jsd_avg=0.0590 but full rescore (iter 26) tod_jsd_avg=0.0912; objective worsened from 5.3131 to 5.3459"
+        },
+        "error_identification": "The proxy subsample used during calibration substantially underestimates time-of-day error; parameters selected on the proxy do not generalize to the full validation set for tod_jsd.",
+        "root_cause_analysis": "Calibration selects best parameters based on a fixed random subsample of 300 validation agent-days, but the distribution of categories/time-of-day in that subset can be unrepresentative. Because the objective includes the time-of-day metric, this sampling bias leads to overfitting to the proxy subset, especially for rarer categories with high per-category JSD.",
+        "correct_approach": "Make the proxy evaluation more representative or reduce selection bias:\n- Stratify proxy target selection by category mass and weekday/weekend (using validation ground truth events) rather than uniform random agent-days.\n- Alternatively, resample a new proxy subset each iteration (with a fixed seed schedule) and select parameters by averaged objective across multiple proxy draws.\n- Keep the final selection criterion as full-validation objective (already computed), i.e., choose the best among all tried params by full-validation score if feasible within budget.",
+        "key_insight": "If you calibrate on a subset, it must preserve the validation distribution of the metrics you optimize (stratify or average across resamples), otherwise selection will not transfer.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-choice-overexplores-global-category-pois-reducing-preference-recall": {
+      "meta_info": {
+        "token_count": 342,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "policy_form: 'Choose specific POI using utility combining personal POI affinity ... and optional crowding'",
+          "agent attributes: 'poi_preference_weights' from TRAIN only"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "learn_agent_priors (seen_pois, poi_prob)",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.2188 (low)"
+        },
+        "error_identification": "Simulated trajectories often miss an agent’s frequently visited POIs (low top-k POI recall ~0.219).",
+        "root_cause_analysis": "Candidate construction mixes (seen_in_cat + near + explore) but the explore and near lists can dominate, especially when categories have many POIs. Even though seen_in_cat is prepended, the softmax can still drift toward nearby/explore POIs because distance penalties and transition backoff may outweigh preference mass, particularly when smoothing_strength is extremely small (best_params smoothing_strength≈1.6e-06) causing sparse/peaky transition/preference interactions.",
+        "correct_approach": "Increase retention of agent-preferred POIs while keeping exploration:\n- Ensure a minimum quota of candidates is reserved for top-N agent-preferred POIs within the category (by priors.poi_prob) and always include them.\n- Add an explicit exploration mixing parameter (e.g., epsilon-greedy over candidates) rather than implicitly via random candidate injection, so calibration can trade off recall vs diversity.\n- Prevent pathological sparsity by lower-bounding effective smoothing in POI transition backoff during choice (separate from training-time smoothing_strength if needed).",
+        "key_insight": "Candidate generation should be preference-preserving by construction (always include top preferred items), and exploration should be explicit and parameterized—not an implicit side effect of random candidate pools.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "no-2019-2020-output-schema-mismatch": {
+      "meta_info": {
+        "token_count": 268,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "objective: \"Output must be a single daily trajectory string EXACTLY matching 1921Y.json format.\"",
+          "outputs: \"trajectory_string_outputs (per agent, per validation date; strict 1921Y.json format)\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "save_results",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Simulator writes 4 JSON files including simulated_trajectories_validation.json with wrapper keys {format_spec, trajectories, meta}, rather than emitting a single 1921Y.json-format object or file."
+        },
+        "error_identification": "Output artifact does not match blueprint requirement to emit a single output in 1921Y.json-like format; instead the code writes a wrapper JSON with metadata and a nested trajectories map.",
+        "root_cause_analysis": "The pipeline’s writer (save_results/main) produces simulated_trajectories_validation.json containing additional keys and not a direct 1921Y.json-style mapping agent_id -> list[day_log strings]. This violates the blueprint’s strict output requirement even though individual day_log strings pass TrajectoryStringFormatter validation.",
+        "correct_approach": "Change only the trajectory output file structure to match 1921Y.json exactly: write a JSON object where each top-level key is agent_id and value is list of day_log strings (no extra wrapper keys). Keep the other three required files unchanged if the surrounding system requires exactly 4 files; otherwise, replace simulated_trajectories_validation.json contents with the raw mapping.",
+        "key_insight": "Separate “string-level format validity” from “file/schema validity”: validate and emit the exact top-level JSON schema required by the dataset, not an enriched wrapper.",
+        "metric_links": []
+      }
+    },
+    "poi-choice-lateness-penalty-wrong-sign": {
+      "meta_info": {
+        "token_count": 318,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "policy_form: \"Generate next timestamp via travel_time(distance)+dwell_time; enforce feasibility\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.7488, stop_count_kl=1.2229; many simulated events occur very late (e.g., 23:59) and some very early (e.g., 00:04) in sample outputs."
+        },
+        "error_identification": "Stop-count distribution is far off (mean error ~1.75 stops/day; KL ~1.22), consistent with the simulator frequently making later events infeasible and truncating the day.",
+        "root_cause_analysis": "In _choose_poi, lateness is computed as max(0, travel_minutes - target_start_minute). This compares travel time (minutes) to an absolute minute-of-day target, which is dimensionally inconsistent and often yields near-zero penalty. The intended penalty is for arriving after target_start_minute: lateness should be max(0, (current_time + travel_minutes) - target_start_minute). Because the wrong penalty doesn’t discourage far/slow POIs that cause late arrivals, the event loop later clamps/breaks (start_time > 1439), reducing realized events/day.",
+        "correct_approach": "Fix lateness computation to use absolute arrival time: lateness = max(0, (current_time + travel_minutes) - target_start_minute). This requires passing current_time into _choose_poi (or computing in simulate_one_day after POI selection and folding into selection by evaluating candidates with current_time). Re-tune the penalty scale after the fix (it will become active).",
+        "key_insight": "Any utility term mixing “duration” and “absolute time-of-day” is a red flag—ensure units match (arrival_time vs target_time) or calibration will mask the bug by truncation artifacts.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.55
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.45
+          }
+        ]
+      }
+    },
+    "stop-count-feasibility-heuristic-too-coarse": {
+      "meta_info": {
+        "token_count": 273,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "policy_form step (1): \"Determine planned number of events for the day\"",
+          "policy_form step (4): \"Generate next timestamp via travel_time(distance)+dwell_time; enforce feasibility\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator.simulate_one_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.7488, stop_count_kl=1.2229"
+        },
+        "error_identification": "Planned stop count is repeatedly reduced by a rough feasibility cap, and the realized distribution still deviates substantially from validation.",
+        "root_cause_analysis": "simulate_one_day uses a fixed expected_per_event heuristic (expected_travel + 45) to cap n_events before any POIs are chosen. This ignores (a) category-specific dwell priors and (b) realized travel distances given the agent’s actual candidate POIs. The result is systematic under/over-shoot depending on the agent, driving stop_count_abs_mean_error and stop_count_kl.",
+        "correct_approach": "Replace the pre-cap heuristic with an online stopping rule: sample a planned count from the learned PMF, then generate events sequentially until either planned count is reached or remaining time is insufficient based on (i) sampled dwell for chosen category and (ii) computed travel time for the chosen POI. This matches the blueprint’s “end_day_or_stop_count_params” intent without a crude global cap.",
+        "key_insight": "If you already have a stop-count model, don’t pre-truncate it with a global average-time heuristic; enforce feasibility during sequential generation using realized travel+dwell.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "distance-distribution-too-tight-missing-dist-fallback": {
+      "meta_info": {
+        "token_count": 275,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "metric: \"step_distance_km_distribution_distance\"",
+          "spatial_resolution: \"drop steps with missing coords\"",
+          "policy_form: \"Choose specific POI using utility combining ... normalized distance decay\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._distance_km_or_fallback",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "CityPOIEnvironment.distance_km",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "trip_distance_wasserstein=0.3778 (also used for step_distance_km_distribution_distance internally)."
+        },
+        "error_identification": "Step-distance Wasserstein is moderate (~0.38 km), suggesting the simulator may be over-concentrating on short moves (or incorrectly handling unknown distances).",
+        "root_cause_analysis": "When env.distance_km is None, _distance_km_or_fallback returns max(5.0, mobility_radius_km), which can inflate distance penalties and bias selection toward POIs with known coordinates (or toward very local behavior), shrinking the simulated distance distribution. Also, evaluation drops missing-coord steps, so simulator and ground truth may differ in which steps are counted.",
+        "correct_approach": "Log and quantify missing-coordinate rates for both GT and simulated steps (count of steps dropped). If missingness is material, adjust fallback to a more neutral prior (e.g., median observed step distance for that agent or category) rather than max(5, radius). Keep “None means missing” in the environment, but choose a statistically grounded fallback for utility computations.",
+        "key_insight": "Coordinate-missing handling affects both behavior (via utility) and evaluation (via dropped steps). Always measure missingness and use a data-derived fallback, not a hardcoded constant.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "time-of-day-model-uses-category-start-hist-not-activity-starts": {
+      "meta_info": {
+        "token_count": 277,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "low",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "time_of_day_histogram_jsd_by_category: \"start-time histograms (minute-of-day)\"",
+          "initialization: \"empirical start-time distribution; empirical inter-event time gaps\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "learn_agent_priors",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._choose_next_category",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.0387; category-specific JSD spikes e.g. Nightlife Spot=0.0676, Residence=0.0528."
+        },
+        "error_identification": "Overall time-of-day divergence is modest, but certain categories show noticeable mismatch (e.g., Nightlife Spot, Residence).",
+        "root_cause_analysis": "Category time priors are learned from observed event timestamps per category (cat_minutes_*), but simulation schedules categories by sampling a future minute from that same histogram, then separately samples dwell and travel. This can distort category start times, especially for categories whose observed timestamps are strongly driven by preceding activities (e.g., Residence returns late night) rather than independent category timing.",
+        "correct_approach": "Condition category timing on transition context: instead of sampling an absolute target_start from cat histogram, sample a gap-to-next-event distribution (from empirical inter-event gaps by (prev_cat, next_cat) or by next_cat) and add to current_time. Use the category time histogram only as a weak regularizer (e.g., penalty if resulting start time is in a low-probability bin).",
+        "key_insight": "Absolute time-of-day priors are not sufficient for categories that are transition-driven; model gaps/relative timing and use absolute histograms as a soft constraint.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-mismatch-high": {
+      "meta_info": {
+        "token_count": 403,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "events_per_day_distribution_distance metric definition",
+          "policy: planned number of events for the day ... enforce feasibility"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator.simulate_one_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._sample_stop_count",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._sample_dwell_minutes",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "stop_count_abs_mean_error=1.5481, stop_count_kl=1.1482 (both high)"
+        },
+        "error_identification": "Simulated days have substantially different number of events than validation: mean absolute error ~1.55 stops/day and distribution KL ~1.15.",
+        "root_cause_analysis": "Two interacting mechanisms in `simulate_one_day()` likely reduce realized stops vs planned:\n1) Start time is sampled freely and can be very late; with non-trivial dwell + travel, the loop breaks early due to `if start_time >= 1439: break`.\n2) Dwell is modeled from gaps between observed event start times (`learn_agent_priors`: `gap_minutes_by_cat` uses `b.minute-a.minute`), which conflates travel + dwell + idle; then travel time is added again in simulation, causing over-long time consumption and early truncation.",
+        "correct_approach": "Fix stop-count realization by addressing both timing sources:\n- Constrain start time sampling to be consistent with observed first-event distribution and feasibility (e.g., reject/redo if remaining day budget can’t fit the sampled planned stops given expected dwell+travel).\n- Re-estimate dwell from within-POI duration is impossible here, but you can avoid double-counting by treating observed gaps as (dwell+travel+idle) and then setting simulated dwell to a smaller fraction of gap (category-specific scaling) OR set travel_time_scale to only account for a fraction when using gap-derived dwell.\nConcretely: introduce a parameter like `gap_to_dwell_fraction` (or reuse existing `travel_time_scale`/`dwell_mu_shift`) and fit it so that expected (travel+dwell) matches observed gaps, not exceeds them.",
+        "key_insight": "If dwell is learned from inter-event gaps, you must not also add full travel time on top—otherwise the day budget collapses and stop counts truncate.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "time-of-day-jsd-driven-by-smoothing-floor": {
+      "meta_info": {
+        "token_count": 206,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "time_of_day_histogram_jsd_by_category: compute histograms of start times (minute-of-day) in simulated vs validation",
+          "time_step: seconds are retained then rounded ... emit HH:MM:SS"
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.0384 (moderate), but evaluator initializes per-category hist arrays with 1.0 in every bin"
+        },
+        "error_identification": "Time-of-day divergence is computed on heavily smoothed histograms, potentially masking true mismatch and making calibration less sensitive.",
+        "root_cause_analysis": "In `Evaluator.compute_metrics()`, `gt_tod_by_cat` and `sim_tod_by_cat` are initialized as `[1.0] * tod_bins_eval` for every category, i.e., a strong uniform pseudocount in every bin. This is far larger than typical Laplace smoothing and can dominate sparse categories, artificially reducing JSD and weakening optimization signal.",
+        "correct_approach": "Use a small smoothing constant (e.g., 1e-3 or 0.1) instead of 1.0, or make it configurable. Keep the same metric key outputs. Example patch: initialize as `[smoothing] * bins` where `smoothing` is small and documented.",
+        "key_insight": "Evaluation smoothing should prevent zeros without flattening distributions; large pseudocounts can hide errors and mislead calibration.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-choice-ignores-distance-when-coords-missing": {
+      "meta_info": {
+        "token_count": 287,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "step_distance_km_distribution_distance: drop steps with missing coords",
+          "POI choice conditioned on category, distance, and agent preferences"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._distance_km_or_fallback",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "trip_distance_wasserstein=0.3414 (looks good) while gt_step_distance_missing_count is very high in logs (not an available metric key)"
+        },
+        "error_identification": "Distance distribution metric may be artificially easy because many ground-truth step distances are missing, and simulation biases toward POIs with known coordinates by treating missing distances as extremely far during candidate pruning.",
+        "root_cause_analysis": "In `_choose_poi()`, the `near` set is based on sorting by `dist_or_big`, which returns 1e9 when coordinates are missing. This effectively excludes POIs with missing coords from the ‘near’ candidate pool, changing the POI universe used for choice relative to ground truth (where missing distances are dropped only at metric time, not at generation time).",
+        "correct_approach": "Don’t use 1e9 for missing distances during candidate pruning. Instead:\n- Use `_distance_km_or_fallback()` for pruning as well (so missing coords get a neutral fallback), or\n- Mix in a fixed fraction of random candidates regardless of distance (already partly done via `explore`, but ensure it’s sufficient and not dominated by `near`).\nThis keeps distance conditioning without systematically excluding missing-coordinate POIs.",
+        "key_insight": "Missing-coordinate handling must be consistent between generation and evaluation; otherwise you optimize against a shifted support.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "implausible-nighttime-starts-and-duplicates": {
+      "meta_info": {
+        "token_count": 317,
+        "status": "resolved",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "start-time distribution; time-of-day priors",
+          "timestamps embedded in day_log strings; enforce feasibility"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator.simulate_one_day",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._choose_next_category",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.0384; sample outputs include many 00:xx and 23:xx starts and repeated identical POIs within minutes"
+        },
+        "error_identification": "Sample trajectories show frequent very late/early events (e.g., 00:xx, 23:xx) and repeated POI visits close together, which can indicate unrealistic temporal dynamics even if aggregate JSD is moderate.",
+        "root_cause_analysis": "The simulator can schedule events at any minute because:\n- Start time is sampled from a coarse histogram (`tod_bins_train=48`) and then uniform within a bin, allowing tails.\n- Category target time is sampled with `_hist_sample_future_minute` and then clamped by `max_wait=240`, which can push late-day events into very late times.\n- There is no explicit de-duplication/anti-repeat constraint (e.g., discouraging immediate revisits to the same POI).",
+        "correct_approach": "Add lightweight temporal realism constraints:\n- Impose an “active window” prior per agent/day-type (e.g., learned from first and last event times in TRAIN) and reject/snap sampled start/targets outside the window.\n- Add a short-term repeat penalty in `_choose_poi()` when `poi_id == prev_poi` (and optionally if visited within last N events).\nThese changes should reduce pathological nighttime clustering without changing output schema.",
+        "key_insight": "Aggregate time-of-day metrics can look acceptable while individual trajectories are implausible; add simple constraints (active window, repeat penalty) to stabilize micro-dynamics.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "no-user-feedback-to-triage": {
+      "meta_info": {
+        "token_count": 116,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "low",
+        "from_user_feedback": false,
+        "blueprint_refs": [],
+        "code_refs": [
+          {
+            "symbol": "orchestrator",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "No user feedback provided; simulation executed successfully."
+        },
+        "error_identification": "No user feedback was provided, so there are no user-prioritized blockers to triage.",
+        "root_cause_analysis": "N/A (missing input signal rather than a simulator fault).",
+        "correct_approach": "Add a lightweight run summary in stdout (e.g., top-3 worst categories by time-of-day JSD, overall missing-distance rate) to guide users to give targeted feedback next iteration.",
+        "key_insight": "When user feedback is absent, proactively emit interpretable diagnostics that directly map to blueprint metrics to accelerate the next iteration.",
+        "metric_links": []
+      }
+    },
+    "noncompliant-output-format-not-single-1921y-json": {
+      "meta_info": {
+        "token_count": 283,
+        "status": "open",
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "Output must be a single daily trajectory string EXACTLY matching 1921Y.json format.",
+          "outputs: \"trajectory_string_outputs (per agent, per validation date; strict 1921Y.json format)\""
+        ],
+        "code_refs": [
+          {
+            "symbol": "save_results",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "main",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "TrajectoryStringFormatter",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Program writes multiple files including simulated_trajectories_validation.json; blueprint calls for output to be a single daily trajectory string matching 1921Y.json format."
+        },
+        "error_identification": "The pipeline produces a JSON wrapper with trajectories plus extra metadata/files, rather than emitting outputs that “EXACTLY” match the 1921Y.json schema of agent_id -> list[day_log strings] as the sole artifact.",
+        "root_cause_analysis": "In main()/save_results(), outputs are split into multiple auxiliary files and the trajectories are nested under {format_spec, trajectories, meta}. This deviates from the blueprint requirement to output in the same format as 1921Y.json (top-level agent_id keys mapping to list of day_log strings) without additional wrapper fields.",
+        "correct_approach": "Change the trajectory output writer to emit a single JSON file whose top-level object is exactly trajectories_by_agent (agent_id -> list[str]) with no extra keys. Keep auxiliary files if desired, but ensure the required primary output artifact is schema-identical to 1921Y.json.",
+        "key_insight": "Strict schema tasks require the primary artifact to match the reference file structure exactly—wrapping metadata breaks downstream consumers even if strings are valid. Treat schema-compatibility as a first-class contract: produce a dedicated ‘ground-truth-shaped’ artifact, and put diagnostics in separate files.",
+        "metric_links": []
+      }
+    },
+    "disallowed-llm-review-pipeline-in-mobility-codebase": {
+      "meta_info": {
+        "token_count": 189,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "overall_simulation_design objective: mobility trajectories",
+          "execution modes: calibrated generative sequential model or optional LLM pipeline for mobility"
+        ],
+        "code_refs": [
+          {
+            "symbol": "MemoryAgent",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "PlanningAgent",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "ReviewAuthor",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "call_gpt5_with_responses_api",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "Execution succeeded without using these classes; they are unrelated to mobility and introduce external dependency paths."
+        },
+        "error_identification": "The code includes an unrelated product-review LLM pipeline (MemoryAgent/PlanningAgent/ReviewAuthor) that is not part of the mobility simulator blueprint and increases maintenance/dependency risk.",
+        "root_cause_analysis": "These classes are dead code for the mobility task. They also add environment requirements (OPENAI_API_KEY, openai SDK) that are irrelevant and could cause future runs to fail if accidentally invoked.",
+        "correct_approach": "Remove the review-related classes and OpenAI helper functions from this mobility simulator module. If a shared repository requires them, move them to a separate module not imported/executed by the simulator entrypoint.",
+        "key_insight": "Keep simulation code minimal and blueprint-scoped; unrelated integrations should live behind separate entrypoints to avoid accidental coupling.",
+        "metric_links": []
+      }
+    },
+    "distance-missingness-skews-step-distance-metric": {
+      "meta_info": {
+        "token_count": 290,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "step_distance_km_distribution_distance: drop steps with missing coords.",
+          "Build reverse index keyed by full POI id 'Name#id' -> (lat, lon)."
+        ],
+        "code_refs": [
+          {
+            "symbol": "Evaluator.compute_metrics",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "_build_poi_indices",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "CityPOIEnvironment.distance_km",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "gt_step_distance_missing_count is very large in logs; trip_distance_wasserstein=0.3954 while many GT steps are dropped, making the distribution comparison potentially unrepresentative."
+        },
+        "error_identification": "Step-distance comparison is computed on a heavily truncated ground-truth set due to missing POI coordinates, so the resulting Wasserstein distance may not reflect true step-length realism.",
+        "root_cause_analysis": "Evaluator.compute_metrics drops steps when env.distance_km returns None. With a high missingness rate for GT POIs (as indicated by the logged gt_step_distance_missing_count), the evaluated GT distribution is biased toward POIs that exist in poi_id_to_latlon, and can diverge from the actual validation distribution.",
+        "correct_approach": "Add a guardrail: if GT missingness exceeds a threshold (e.g., >30% of GT steps), report trip_distance_wasserstein but also (a) log missingness ratio prominently and (b) optionally compute a fallback proxy distance metric using category-level typical distances only if permitted. Within current blueprint constraints, at minimum incorporate missingness ratio into calibration objective by penalizing high sim missingness and reporting GT missingness as a warning, so the metric isn’t over-trusted.",
+        "key_insight": "Distance-based metrics are only meaningful when coordinate coverage is comparable; always quantify missingness and gate calibration/interpretation accordingly.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poor-time-of-day-fit-in-several-categories": {
+      "meta_info": {
+        "token_count": 361,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "time_of_day_histogram_jsd_by_category: per-category start-time histograms; report average and per-category."
+        ],
+        "code_refs": [
+          {
+            "symbol": "learn_agent_priors",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._choose_next_category",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator.simulate_one_day",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "tod_jsd_avg=0.2064; per-category JSD is high for College & University (~0.54), Event (~0.52), Residence (~0.44)."
+        },
+        "error_identification": "Average time-of-day divergence is moderate, but several categories have large mismatches (notably College & University, Event, Residence).",
+        "root_cause_analysis": "Category selection is influenced by (a) priors.cat_prob, (b) transition probs, and (c) a fixed multiplier 1.25*log(tod_prob) in _choose_next_category, but the scheduler also clamps target times using active_window and a max_wait heuristic, and the POI choice adds lateness penalties that can shift start times away from category hist peaks. These interacting heuristics can distort the intended time-of-day distribution, especially for categories that are rare or tightly time-bound in data.",
+        "correct_approach": "Make time modeling explicit and less deformable: (1) sample target_start_minute from category histogram (already done), but (2) instead of clamping hard to active_window/max_wait, resample a limited number of times conditioned on feasibility, and (3) reduce downstream time shifts by selecting POI first with distance/utility, then setting start_time to the sampled target (with travel feasibility) rather than max(target, arrival) + extra clamping. Additionally, tune the tod logit multiplier as a calibratable parameter (within existing calibration framework) rather than a hardcoded 1.25.",
+        "key_insight": "If time-of-day is an evaluation target, avoid layered heuristics (clamps/late penalties) that silently re-shape the sampled time distribution; keep timing as a primary sampled variable with feasibility handled by resampling.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "low-topk-poi-recall-indicates-weak-personalization": {
+      "meta_info": {
+        "token_count": 341,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "severity": "high",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "POI choice conditioned on category, distance, and agent preferences.",
+          "parameters: alpha_pref, alpha_transition, beta_distance, smoothing_strength"
+        ],
+        "code_refs": [
+          {
+            "symbol": "learn_agent_priors",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "topk_poi_recall=0.3043 (low)."
+        },
+        "error_identification": "Simulated trajectories often fail to include an agent’s frequently visited POIs (only ~30% of GT top-10 POIs are visited at least once across validation days).",
+        "root_cause_analysis": "Two compounding causes: (1) priors.poi_prob is smoothed over the entire global POI universe (global_pois = all POIs with coordinates), which can be extremely large and dilutes probability mass away from the agent’s seen POIs; (2) _choose_poi uses large candidate pools (near + explore + category candidates), with only a modest repeat penalty and relatively small beta_distance in best params, enabling frequent selection of plausible but non-personal POIs within a category.",
+        "correct_approach": "Constrain personalization support: build priors.poi_prob over a finite support focused on the agent’s seen POIs plus a small exploration tail per category (e.g., seen_pois ∪ top-M nearest POIs to home per category). Keep smoothing within that support. In _choose_poi, increase the weight of personal affinity by adding an explicit boost for seen POIs (or calibrate an exploration rate that controls how often explore candidates are included). This stays within blueprint (preference + distance + transitions) but prevents global dilution.",
+        "key_insight": "When the item universe is huge, don’t smooth over the full global support; define a principled candidate/support set so preference learning remains identifiable and recall doesn’t collapse.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "transition-model-underweighted-by-construction": {
+      "meta_info": {
+        "token_count": 339,
+        "status": "open",
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "severity": "medium",
+        "from_user_feedback": false,
+        "blueprint_refs": [
+          "parameters: alpha_pref, alpha_transition; transition_model_params from TRAIN days.",
+          "policy: next-activity conditioned on transitions and time-of-day."
+        ],
+        "code_refs": [
+          {
+            "symbol": "MobilitySimulator._choose_next_category",
+            "lines": "unknown"
+          },
+          {
+            "symbol": "MobilitySimulator._choose_poi",
+            "lines": "unknown"
+          }
+        ],
+        "evidence": {
+          "user_feedback": null,
+          "error_logs": null,
+          "metrics": "transition_divergence is low (0.0109), but this may be dominated by smoothing/backoff and doesn’t guarantee realistic sequences; other metrics (topk_poi_recall, tod_jsd_avg) remain weak."
+        },
+        "error_identification": "Even with low transition_divergence, the simulator may be achieving this via heavy smoothing/backoff rather than genuinely learning sequential structure, while POI recall and time-of-day alignment remain poor.",
+        "root_cause_analysis": "In _choose_next_category and _choose_poi, transition probabilities are blended with preference using _transition_backoff_weight(smoothing_strength)=x/(1+x) but then clipped to [0.02,0.75]. With very small calibrated smoothing_strength (~1e-6), backoff becomes 0.02, which still injects preference mass into transitions; additionally alpha_pref/alpha_transition are forced to sum to 1 at sampling time, limiting calibration flexibility. The transition metric itself is computed as JSD over add-1 smoothed global bigram distributions, which can mask errors.",
+        "correct_approach": "Make backoff and TOD weighting calibratable rather than derived from smoothing_strength, and remove the hard minimum backoff of 0.02 (allow near-zero when data supports). Keep smoothing_strength strictly for count smoothing, not for behavioral mixing. Also consider computing transition_divergence without add-1 smoothing for diagnostics (while keeping a smoothed version for stability) so calibration can’t “win” by flattening distributions.",
+        "key_insight": "Don’t reuse ‘smoothing’ as a behavioral mixture control; separate statistical smoothing from decision-policy mixing to keep calibration interpretable.",
+        "metric_links": [
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.4
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    }
+  }
+}

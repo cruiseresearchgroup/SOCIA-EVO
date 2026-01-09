@@ -1,0 +1,66 @@
+You need to add functionality to call LLM using OpenAI API.
+
+HARD REQUIREMENT: The Reasoning Agent MUST perform its reasoning via an LLM call. Concretely, when reasoning about user's possible review or star (for example in ReviewAuthor.generate(...)), you must integrate an OpenAI LLM call that constructs a prompt from (a) user information retrieved by the Memory Agent, (b) item/product information retrieved by the Memory Agent, and (c) the plan or task decomposition produced by the Planning Agent, and then uses the LLM output as the primary review text.
+
+Please implement the following steps:
+
+1. Add get_openai_api_key() function:
+```python
+import os
+from openai import OpenAI
+
+def get_openai_api_key():
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        return api_key
+    raise ValueError("OpenAI API key not found in environment")
+```
+
+2. Add call_gpt5_with_responses_api() function or similar:
+```python
+def call_gpt5_with_responses_api(prompt: str, model: str = "gpt-5", max_output_tokens: int = 4000):
+    api_key = get_openai_api_key()
+    client = OpenAI(api_key=api_key)
+    
+    responses_kwargs = {
+        "model": model,
+        "input": [
+            {"role": "user", "content": [{"type": "input_text", "text": prompt}]}
+        ],
+        "max_output_tokens": max_output_tokens,
+    }
+    
+    resp = client.responses.create(**responses_kwargs)
+    
+    def extract_response(resp_obj):
+        if hasattr(resp_obj, "output_text") and isinstance(resp_obj.output_text, str):
+            return resp_obj.output_text
+        try:
+            output = getattr(resp_obj, "output", None)
+            if output and isinstance(output, list):
+                content = output[0].get("content") if isinstance(output[0], dict) else None
+                if content and isinstance(content, list) and len(content) > 0:
+                    text = content[0].get("text")
+                    if isinstance(text, str):
+                        return text
+        except Exception:
+            pass
+        return str(resp_obj)
+    
+    return extract_response(resp)
+```
+
+3. Use in places where LLM needs to be called:
+```python
+response = call_gpt5_with_responses_api(prompt="your prompt here", model="gpt-5", max_output_tokens=4000)
+```
+
+Important notes:
+- Must use client.responses.create() instead of client.chat.completions.create()
+- Use max_output_tokens parameter instead of max_tokens parameter
+- API key is obtained from environment variable OPENAI_API_KEY
+- Use extract_response() function to extract text content from response object
+- Build the LLM prompt by concatenating/pluggable placeholders for:
+   - user context from the Memory Agent,
+   - item/product context from the Memory Agent,
+   - plan/steps from the Planning Agent, and pass that prompt to call_gpt5_with_responses_api(...). The LLM’s returned text should be used as the review body (optionally post-processed or validated).

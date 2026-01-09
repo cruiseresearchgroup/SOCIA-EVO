@@ -1,0 +1,9 @@
+
+
+Temporal Holdout (STRICT):
+- Split by unique days, not by transition steps.
+- Let days = sorted(unique days in train_data.csv). Use the first 80% days for training (days_train) and the remaining 20% days for validation (val_days).
+- All training matrices must be built ONLY from days_train.
+- The forward simulation should run exactly over val_days; metrics must compare against observed ground truth on val_days.
+- If val_days is empty, raise a clear error: "No validation days available after temporal split."
+

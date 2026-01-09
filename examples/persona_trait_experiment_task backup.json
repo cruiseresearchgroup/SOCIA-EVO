@@ -1,0 +1,173 @@
+{
+  "task_objective": {
+    "description": "Simulate LLM-based personas that are parameterised by human trait scores (BFI, Need for Cognition, CRT2) and then administer psychometric tests and writing tasks to those personas.",
+    "simulation_focus": [
+      "Read synthetic_personas.csv and, for each row, construct one or more persona prompts that configure an LLM according to that row's demographic variables and trait scores.",
+      "Administer psychometric tests (CRT2, bCRT, NFC-18, BFI-brief) and reflection-related writing tasks to each configured persona, using configurable granularity of API calls (per item, per test, or all tests at once).",
+      "Record all LLM responses in structured JSON, automatically merged with the originating persona row, to create a single analysis-ready dataset."
+    ]
+  },
+  "data_folder": "data_fitting/persona_trait_experiment/",
+  "data_files": {
+    "synthetic_personas.csv": "N=470 synthetic personas with demographic variables and target trait scores for Big Five (BFI), Need for Cognition (NFC), and CRT2. Columns include numeric scores and, where available, short human-readable descriptions.",
+    "crt2_items.yaml": "YAML specification of the 4-item CRT2 form, including item text and correct answers.",
+    "bcrt_items.yaml": "YAML specification of the 4-item bespoke CRT (bCRT) form, including item text and correct answers.",
+    "nfc18_items.yaml": "YAML specification of the 18-item Need for Cognition short form, including item text and keyed direction (p/a).",
+    "bfi10_items.yaml": "YAML specification of the 8-item BFI-brief questionnaire used in the synthetic dataset.",
+    "writing_tasks.yaml": "YAML specification of 2 reflection-related writing prompts used as downstream behavioural measures.",
+    "crt_scoring_config.yaml": "Optional config that encodes mapping of free-form LLM responses on CRT items to ordinal labels (0 = other error, 1 = intuitive-incorrect, 2 = correct) for automatic scoring."
+  },
+  "evaluation_metrics": {
+    "trait_fidelity": {
+      "description": "How well simulated test scores reproduce target trait scores from synthetic_personas.csv for BFI, NFC, and CRT2.",
+      "examples": [
+        "Pearson and Spearman correlations between target scores and obtained scores for each scale.",
+        "Mean absolute error (MAE) between target and obtained CRT2 scores.",
+        "Monotonicity checks that higher target trait levels yield stochastically higher test scores."
+      ]
+    },
+    "behavioural_alignment": {
+      "description": "Degree to which specified traits predict downstream behaviour on writing tasks.",
+      "examples": [
+        "Regress LIWC-based features of writing (e.g., analytic, insight, affect) on specified CRT/NFC levels and check for theoretically expected trends.",
+        "Compare distributions of writing-task scores across coarse and granular persona conditions."
+      ]
+    },
+    "response_consistency": {
+      "description": "Internal reliability and stability of responses within each simulated persona.",
+      "examples": [
+        "Cronbach's alpha or omega for NFC and BFI scales.",
+        "Test-retest consistency when repeating the same questionnaire for a subset of personas.",
+        "Within-session self-consistency when item order is shuffled."
+      ]
+    }
+  },
+  "tests": {
+    "administration_modes": {
+      "description": "Control over how many items are sent per API call.",
+      "options": [
+        "per_item: one API call per item with persona prompt + single item.",
+        "per_test: one API call per test with persona prompt + all items in that test.",
+        "all_tests: one API call per persona with persona prompt + all tests and writing tasks."
+      ]
+    },
+    "shuffling_options": {
+      "description": "Options for randomisation to control order effects.",
+      "options": [
+        "shuffle_items_within_tests",
+        "shuffle_test_order",
+        "fixed_order_for_reproducibility"
+      ]
+    }
+  },
+  "persona_specification": {
+    "qualifier_scale_1_to_9": {
+      "description": "Linguistic qualifiers applied to low and high pole descriptors for both BFI and NFC.",
+      "levels": [
+        "1. extremely {low_adjective}",
+        "2. very {low_adjective}",
+        "3. {low_adjective}",
+        "4. a bit {low_adjective}",
+        "5. neither {low_adjective} nor {high_adjective}",
+        "6. a bit {high_adjective}",
+        "7. {high_adjective}",
+        "8. very {high_adjective}",
+        "9. extremely {high_adjective}"
+      ]
+    },
+    "bfi": {
+      "coarse_numeric": {
+        "description": "Map continuous Big Five scores from synthetic_personas.csv (typically 1\u20135 with 0.5 increments) into three bins: low, neutral, high.",
+        "mapping_rules": {
+          "low": "score <= 2.5",
+          "neutral": "2.5 < score < 3.5",
+          "high": "score >= 3.5"
+        },
+        "prompt_template": "You are a person with {polarity} {trait_name}.",
+        "example": "You are a person with high extraversion."
+      },
+      "coarse_descriptive": {
+        "description": "Same three-way binning as coarse_numeric, but use descriptive words drawn from the markers table (serapio_goldberg_markers.csv).",
+        "prompt_template": "You are a person who is {descriptor_list}.",
+        "example": "You are a person who is friendly, talkative, and energetic."
+      },
+      "granular_serapio": {
+        "description": "Nine-level shaping of each Big Five domain using Goldberg/Serapio adjective pairs and the 1\u20139 qualifier scale. Synthetic scores (1\u20135 with .5 increments) are linearly mapped to 1\u20139 levels.",
+        "level_mapping": "Map 1.0\u21921, 1.5\u21922, \u2026, 5.0\u21929 using: level = 2 * (score - 1) + 1.",
+        "markers_csv": "serapio_goldberg_markers.csv",
+        "prompt_template": "For the following tasks, respond as a person described as: \"I am {qualified_descriptors}.\"",
+        "qualified_descriptors_construction": "For a given domain (e.g., Extraversion) and target level L, choose either low_marker(s) or high_marker(s) from the CSV depending on whether L <= 4 or L >= 6. Apply the corresponding qualifier string from qualifier_scale_1_to_9, and optionally join 2\u20133 markers with commas."
+      }
+    },
+    "nfc": {
+      "granular_9_level": {
+        "description": "Nine-level shaping of Need for Cognition based on the validated 18-item NFC short form. High and low descriptors are derived from positively and reverse-keyed items.",
+        "high_descriptors": [
+          "enjoys complex rather than simple problems",
+          "likes responsibility for situations that require a lot of thinking",
+          "finds satisfaction in deliberating hard and for long periods",
+          "enjoys tasks that involve generating new solutions to problems",
+          "prefers life to be filled with puzzles and challenging questions",
+          "finds abstract thinking appealing",
+          "prefers intellectual, difficult, and important tasks",
+          "often deliberates about issues even when they do not affect them personally"
+        ],
+        "low_descriptors": [
+          "thinks only as hard as necessary",
+          "prefers tasks that require little thought once learned",
+          "would rather do something that requires little thought",
+          "tries to avoid situations that demand deep thinking",
+          "finds thinking effortful rather than fun",
+          "feels relief rather than satisfaction after heavy mental effort",
+          "is content when something works without understanding how or why"
+        ],
+        "prompt_template": "For the following tasks, respond as a person described as: \"I {qualified_nfc_description}.\"",
+        "construction_rules": [
+          "Select one to three phrases from high_descriptors or low_descriptors, depending on the target level.",
+          "Apply the 1\u20139 qualifier scale: levels 1\u20134 use low_descriptors, levels 6\u20139 use high_descriptors, and level 5 combines both in a 'neither low nor high' clause.",
+          "Example high level (L=8): \"I very much enjoy complex problems, find satisfaction in deliberating hard, and prefer intellectual, difficult tasks.\"",
+          "Example low level (L=2): \"I very much prefer tasks that require little thought, think only as hard as necessary, and try to avoid situations that demand deep thinking.\""
+        ]
+      }
+    },
+    "crt": {
+      "levels_0_to_4": {
+        "description": "Coarse specification of CRT2-like reflective thinking ability using five behavioural levels. Each level can be invoked numerically (e.g., crt2_level=2) and via an associated description sentence.",
+        "numeric_tag_template": "This persona has a CRT2 ability level of {crt2_level} on a 0\u20134 scale.",
+        "level_descriptions": [
+          {
+            "level": 0,
+            "label": "very low reflection",
+            "sentence": "I almost always trust my first impression, answer quickly without re-checking, and rarely notice when a question might be tricky."
+          },
+          {
+            "level": 1,
+            "label": "low reflection",
+            "sentence": "I often go with my first impression and only occasionally stop to reconsider whether it might be misleading."
+          },
+          {
+            "level": 2,
+            "label": "mixed reflection",
+            "sentence": "I sometimes pause to reconsider my first impression before answering, but I am inconsistent and often stick with the obvious answer."
+          },
+          {
+            "level": 3,
+            "label": "high reflection",
+            "sentence": "I usually pause to check whether an obvious answer could be a trap, and I am willing to change my mind after thinking things through."
+          },
+          {
+            "level": 4,
+            "label": "very high reflection",
+            "sentence": "I almost always look for hidden assumptions, carefully check for tricks, and verify my answers with calculations before responding."
+          }
+        ],
+        "prompt_template": "For the following CRT-style questions, respond as a person described as: \"{crt_sentence}\"",
+        "usage_notes": [
+          "The simulator should allow two modes: (a) numeric-only specification, passing crt2_level as a variable, and (b) full descriptive specification using the corresponding sentence.",
+          "No instruction should mention scores, correctness, or 'being wrong'; the sentences describe thinking style only.",
+          "For now, no optimisation loop over prompts is included; the simulator simply instantiates these fixed descriptions per level."
+        ]
+      }
+    }
+  }
+}

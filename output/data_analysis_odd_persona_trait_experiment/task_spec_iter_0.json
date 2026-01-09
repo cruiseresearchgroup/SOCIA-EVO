@@ -1,0 +1,856 @@
+{
+  "title": "Simulation Task",
+  "description": "Simulate LLM-based personas that are parameterised by human trait scores (BFI, Need for Cognition, CRT2) and then administer psychometric tests and writing tasks to those personas.",
+  "simulation_focus": [
+    "Read synthetic_personas.csv and, for each row, construct one or more persona prompts that configure an LLM according to that row's demographic variables and trait scores.",
+    "Administer psychometric tests (CRT2, bCRT, NFC-18, BFI-brief) and reflection-related writing tasks to each configured persona, using configurable granularity of API calls (per item, per test, or all tests at once).",
+    "Record all LLM responses in structured JSON, automatically merged with the originating persona row, to create a single analysis-ready dataset."
+  ],
+  "data_folder": "data_fitting/persona_trait_experiment/",
+  "data_files": {
+    "synthetic_personas.csv": "N=470 synthetic personas with demographic variables and target trait scores for Big Five (BFI), Need for Cognition (NFC), and CRT2. Columns include numeric scores and, where available, short human-readable descriptions.",
+    "crt2_items.yaml": "YAML specification of the 4-item CRT2 form, including item text and correct answers.",
+    "bcrt_items.yaml": "YAML specification of the 4-item bespoke CRT (bCRT) form, including item text and correct answers.",
+    "nfc18_items.yaml": "YAML specification of the 18-item Need for Cognition short form, including item text and keyed direction (p/a).",
+    "bfi10_items.yaml": "YAML specification of the 8-item BFI-brief questionnaire used in the synthetic dataset.",
+    "writing_tasks.yaml": "YAML specification of 2 reflection-related writing prompts used as downstream behavioural measures."
+  },
+  "evaluation_metrics": {
+    "trait_fidelity": {
+      "description": "How well simulated test scores reproduce target trait scores from synthetic_personas.csv for BFI, NFC, and CRT2.",
+      "examples": [
+        "Pearson and Spearman correlations between target scores and obtained scores for each scale.",
+        "Mean absolute error (MAE) between target and obtained CRT2 scores.",
+        "Monotonicity checks that higher target trait levels yield stochastically higher test scores."
+      ]
+    },
+    "behavioural_alignment": {
+      "description": "Degree to which specified traits predict downstream behaviour on writing tasks.",
+      "examples": [
+        "Regress LIWC-based features of writing (e.g., analytic, insight, affect) on specified CRT/NFC levels and check for theoretically expected trends.",
+        "Compare distributions of writing-task scores across coarse and granular persona conditions."
+      ]
+    },
+    "response_consistency": {
+      "description": "Internal reliability and stability of responses within each simulated persona.",
+      "examples": [
+        "Cronbach's alpha or omega for NFC and BFI scales.",
+        "Test-retest consistency when repeating the same questionnaire for a subset of personas.",
+        "Within-session self-consistency when item order is shuffled."
+      ]
+    }
+  },
+  "tests": {
+    "administration_modes": {
+      "description": "Control over how many items are sent per API call.",
+      "options": [
+        "per_item: one API call per item with persona prompt + single item.",
+        "per_test: one API call per test with persona prompt + all items in that test.",
+        "all_tests: one API call per persona with persona prompt + all tests and writing tasks."
+      ]
+    },
+    "shuffling_options": {
+      "description": "Options for randomisation to control order effects.",
+      "options": [
+        "shuffle_items_within_tests",
+        "shuffle_test_order",
+        "fixed_order_for_reproducibility"
+      ]
+    }
+  },
+  "persona_specification": {
+    "qualifier_scale_1_to_9": {
+      "description": "Linguistic qualifiers applied to low and high pole descriptors for both BFI and NFC.",
+      "levels": [
+        "1. extremely {low_adjective}",
+        "2. very {low_adjective}",
+        "3. {low_adjective}",
+        "4. a bit {low_adjective}",
+        "5. neither {low_adjective} nor {high_adjective}",
+        "6. a bit {high_adjective}",
+        "7. {high_adjective}",
+        "8. very {high_adjective}",
+        "9. extremely {high_adjective}"
+      ]
+    },
+    "bfi": {
+      "coarse_numeric": {
+        "description": "Map continuous Big Five scores from synthetic_personas.csv (typically 1\u20135 with 0.5 increments) into three bins: low, neutral, high.",
+        "mapping_rules": {
+          "low": "score <= 2.5",
+          "neutral": "2.5 < score < 3.5",
+          "high": "score >= 3.5"
+        },
+        "prompt_template": "You are a person with {polarity} {trait_name}.",
+        "example": "You are a person with high extraversion."
+      },
+      "coarse_descriptive": {
+        "description": "Same three-way binning as coarse_numeric, but use descriptive words drawn from the markers table (serapio_goldberg_markers.csv).",
+        "prompt_template": "You are a person who is {descriptor_list}.",
+        "example": "You are a person who is friendly, talkative, and energetic."
+      },
+      "granular_serapio": {
+        "description": "Nine-level shaping of each Big Five domain using Goldberg/Serapio adjective pairs and the 1\u20139 qualifier scale. Synthetic scores (1\u20135 with .5 increments) are linearly mapped to 1\u20139 levels.",
+        "level_mapping": "Map 1.0\u21921, 1.5\u21922, \u2026, 5.0\u21929 using: level = 2 * (score - 1) + 1.",
+        "markers_csv": "serapio_goldberg_markers.csv",
+        "prompt_template": "For the following tasks, respond as a person described as: \"I am {qualified_descriptors}.\"",
+        "qualified_descriptors_construction": "For a given domain (e.g., Extraversion) and target level L, choose either low_marker(s) or high_marker(s) from the CSV depending on whether L <= 4 or L >= 6. Apply the corresponding qualifier string from qualifier_scale_1_to_9, and optionally join 2\u20133 markers with commas."
+      }
+    },
+    "nfc": {
+      "granular_9_level": {
+        "description": "Nine-level shaping of Need for Cognition based on the validated 18-item NFC short form. High and low descriptors are derived from positively and reverse-keyed items.",
+        "high_descriptors": [
+          "enjoys complex rather than simple problems",
+          "likes responsibility for situations that require a lot of thinking",
+          "finds satisfaction in deliberating hard and for long periods",
+          "enjoys tasks that involve generating new solutions to problems",
+          "prefers life to be filled with puzzles and challenging questions",
+          "finds abstract thinking appealing",
+          "prefers intellectual, difficult, and important tasks",
+          "often deliberates about issues even when they do not affect them personally"
+        ],
+        "low_descriptors": [
+          "thinks only as hard as necessary",
+          "prefers tasks that require little thought once learned",
+          "would rather do something that requires little thought",
+          "tries to avoid situations that demand deep thinking",
+          "finds thinking effortful rather than fun",
+          "feels relief rather than satisfaction after heavy mental effort",
+          "is content when something works without understanding how or why"
+        ],
+        "prompt_template": "For the following tasks, respond as a person described as: \"I {qualified_nfc_description}.\"",
+        "construction_rules": [
+          "Select one to three phrases from high_descriptors or low_descriptors, depending on the target level.",
+          "Apply the 1\u20139 qualifier scale: levels 1\u20134 use low_descriptors, levels 6\u20139 use high_descriptors, and level 5 combines both in a 'neither low nor high' clause.",
+          "Example high level (L=8): \"I very much enjoy complex problems, find satisfaction in deliberating hard, and prefer intellectual, difficult tasks.\"",
+          "Example low level (L=2): \"I very much prefer tasks that require little thought, think only as hard as necessary, and try to avoid situations that demand deep thinking.\""
+        ]
+      }
+    },
+    "crt": {
+      "levels_0_to_4": {
+        "description": "Coarse specification of CRT2-like reflective thinking ability using five behavioural levels. Each level can be invoked numerically (e.g., crt2_level=2) and via an associated description sentence.",
+        "numeric_tag_template": "This persona has a CRT2 ability level of {crt2_level} on a 0\u20134 scale.",
+        "level_descriptions": [
+          {
+            "level": 0,
+            "label": "very low reflection",
+            "sentence": "I almost always trust my first impression, answer quickly without re-checking, and rarely notice when a question might be tricky."
+          },
+          {
+            "level": 1,
+            "label": "low reflection",
+            "sentence": "I often go with my first impression and only occasionally stop to reconsider whether it might be misleading."
+          },
+          {
+            "level": 2,
+            "label": "mixed reflection",
+            "sentence": "I sometimes pause to reconsider my first impression before answering, but I am inconsistent and often stick with the obvious answer."
+          },
+          {
+            "level": 3,
+            "label": "high reflection",
+            "sentence": "I usually pause to check whether an obvious answer could be a trap, and I am willing to change my mind after thinking things through."
+          },
+          {
+            "level": 4,
+            "label": "very high reflection",
+            "sentence": "I almost always look for hidden assumptions, carefully check for tricks, and verify my answers with calculations before responding."
+          }
+        ],
+        "prompt_template": "For the following CRT-style questions, respond as a person described as: \"{crt_sentence}\"",
+        "usage_notes": [
+          "The simulator should allow two modes: (a) numeric-only specification, passing crt2_level as a variable, and (b) full descriptive specification using the corresponding sentence.",
+          "No instruction should mention scores, correctness, or 'being wrong'; the sentences describe thinking style only.",
+          "For now, no optimisation loop over prompts is included; the simulator simply instantiates these fixed descriptions per level."
+        ]
+      }
+    }
+  },
+  "data_analysis_result": {
+    "task_objective": {
+      "description": "Simulate LLM-based personas that are parameterised by human trait scores (BFI, Need for Cognition, CRT2) and then administer psychometric tests and writing tasks to those personas.",
+      "simulation_focus": [
+        "Read synthetic_personas.csv and, for each row, construct one or more persona prompts that configure an LLM according to that row's demographic variables and trait scores.",
+        "Administer psychometric tests (CRT2, bCRT, NFC-18, BFI-brief) and reflection-related writing tasks to each configured persona, using configurable granularity of API calls (per item, per test, or all tests at once).",
+        "Record all LLM responses in structured JSON, automatically merged with the originating persona row, to create a single analysis-ready dataset."
+      ]
+    },
+    "evaluation_metrics": {
+      "trait_fidelity": {
+        "description": "How well simulated test scores reproduce target trait scores from synthetic_personas.csv for BFI, NFC, and CRT2.",
+        "examples": [
+          "Pearson and Spearman correlations between target scores and obtained scores for each scale.",
+          "Mean absolute error (MAE) between target and obtained CRT2 scores.",
+          "Monotonicity checks that higher target trait levels yield stochastically higher test scores."
+        ]
+      },
+      "behavioural_alignment": {
+        "description": "Degree to which specified traits predict downstream behaviour on writing tasks.",
+        "examples": [
+          "Regress LIWC-based features of writing (e.g., analytic, insight, affect) on specified CRT/NFC levels and check for theoretically expected trends.",
+          "Compare distributions of writing-task scores across coarse and granular persona conditions."
+        ]
+      },
+      "response_consistency": {
+        "description": "Internal reliability and stability of responses within each simulated persona.",
+        "examples": [
+          "Cronbach's alpha or omega for NFC and BFI scales.",
+          "Test-retest consistency when repeating the same questionnaire for a subset of personas.",
+          "Within-session self-consistency when item order is shuffled."
+        ]
+      }
+    },
+    "tests": {
+      "administration_modes": {
+        "description": "Control over how many items are sent per API call.",
+        "options": [
+          "per_item: one API call per item with persona prompt + single item.",
+          "per_test: one API call per test with persona prompt + all items in that test.",
+          "all_tests: one API call per persona with persona prompt + all tests and writing tasks."
+        ]
+      },
+      "shuffling_options": {
+        "description": "Options for randomisation to control order effects.",
+        "options": [
+          "shuffle_items_within_tests",
+          "shuffle_test_order",
+          "fixed_order_for_reproducibility"
+        ]
+      }
+    },
+    "persona_specification": {
+      "qualifier_scale_1_to_9": {
+        "description": "Linguistic qualifiers applied to low and high pole descriptors for both BFI and NFC.",
+        "levels": [
+          "1. extremely {low_adjective}",
+          "2. very {low_adjective}",
+          "3. {low_adjective}",
+          "4. a bit {low_adjective}",
+          "5. neither {low_adjective} nor {high_adjective}",
+          "6. a bit {high_adjective}",
+          "7. {high_adjective}",
+          "8. very {high_adjective}",
+          "9. extremely {high_adjective}"
+        ]
+      },
+      "bfi": {
+        "coarse_numeric": {
+          "description": "Map continuous Big Five scores from synthetic_personas.csv (typically 1\u20135 with 0.5 increments) into three bins: low, neutral, high.",
+          "mapping_rules": {
+            "low": "score <= 2.5",
+            "neutral": "2.5 < score < 3.5",
+            "high": "score >= 3.5"
+          },
+          "prompt_template": "You are a person with {polarity} {trait_name}.",
+          "example": "You are a person with high extraversion."
+        },
+        "coarse_descriptive": {
+          "description": "Same three-way binning as coarse_numeric, but use descriptive words drawn from the markers table (serapio_goldberg_markers.csv).",
+          "prompt_template": "You are a person who is {descriptor_list}.",
+          "example": "You are a person who is friendly, talkative, and energetic."
+        },
+        "granular_serapio": {
+          "description": "Nine-level shaping of each Big Five domain using Goldberg/Serapio adjective pairs and the 1\u20139 qualifier scale. Synthetic scores (1\u20135 with .5 increments) are linearly mapped to 1\u20139 levels.",
+          "level_mapping": "Map 1.0\u21921, 1.5\u21922, \u2026, 5.0\u21929 using: level = 2 * (score - 1) + 1.",
+          "markers_csv": "serapio_goldberg_markers.csv",
+          "prompt_template": "For the following tasks, respond as a person described as: \"I am {qualified_descriptors}.\"",
+          "qualified_descriptors_construction": "For a given domain (e.g., Extraversion) and target level L, choose either low_marker(s) or high_marker(s) from the CSV depending on whether L <= 4 or L >= 6. Apply the corresponding qualifier string from qualifier_scale_1_to_9, and optionally join 2\u20133 markers with commas."
+        }
+      },
+      "nfc": {
+        "granular_9_level": {
+          "description": "Nine-level shaping of Need for Cognition based on the validated 18-item NFC short form. High and low descriptors are derived from positively and reverse-keyed items.",
+          "high_descriptors": [
+            "enjoys complex rather than simple problems",
+            "likes responsibility for situations that require a lot of thinking",
+            "finds satisfaction in deliberating hard and for long periods",
+            "enjoys tasks that involve generating new solutions to problems",
+            "prefers life to be filled with puzzles and challenging questions",
+            "finds abstract thinking appealing",
+            "prefers intellectual, difficult, and important tasks",
+            "often deliberates about issues even when they do not affect them personally"
+          ],
+          "low_descriptors": [
+            "thinks only as hard as necessary",
+            "prefers tasks that require little thought once learned",
+            "would rather do something that requires little thought",
+            "tries to avoid situations that demand deep thinking",
+            "finds thinking effortful rather than fun",
+            "feels relief rather than satisfaction after heavy mental effort",
+            "is content when something works without understanding how or why"
+          ],
+          "prompt_template": "For the following tasks, respond as a person described as: \"I {qualified_nfc_description}.\"",
+          "construction_rules": [
+            "Select one to three phrases from high_descriptors or low_descriptors, depending on the target level.",
+            "Apply the 1\u20139 qualifier scale: levels 1\u20134 use low_descriptors, levels 6\u20139 use high_descriptors, and level 5 combines both in a 'neither low nor high' clause.",
+            "Example high level (L=8): \"I very much enjoy complex problems, find satisfaction in deliberating hard, and prefer intellectual, difficult tasks.\"",
+            "Example low level (L=2): \"I very much prefer tasks that require little thought, think only as hard as necessary, and try to avoid situations that demand deep thinking.\""
+          ]
+        }
+      },
+      "crt": {
+        "levels_0_to_4": {
+          "description": "Coarse specification of CRT2-like reflective thinking ability using five behavioural levels. Each level can be invoked numerically (e.g., crt2_level=2) and via an associated description sentence.",
+          "numeric_tag_template": "This persona has a CRT2 ability level of {crt2_level} on a 0\u20134 scale.",
+          "level_descriptions": [
+            {
+              "level": 0,
+              "label": "very low reflection",
+              "sentence": "I almost always trust my first impression, answer quickly without re-checking, and rarely notice when a question might be tricky."
+            },
+            {
+              "level": 1,
+              "label": "low reflection",
+              "sentence": "I often go with my first impression and only occasionally stop to reconsider whether it might be misleading."
+            },
+            {
+              "level": 2,
+              "label": "mixed reflection",
+              "sentence": "I sometimes pause to reconsider my first impression before answering, but I am inconsistent and often stick with the obvious answer."
+            },
+            {
+              "level": 3,
+              "label": "high reflection",
+              "sentence": "I usually pause to check whether an obvious answer could be a trap, and I am willing to change my mind after thinking things through."
+            },
+            {
+              "level": 4,
+              "label": "very high reflection",
+              "sentence": "I almost always look for hidden assumptions, carefully check for tricks, and verify my answers with calculations before responding."
+            }
+          ],
+          "prompt_template": "For the following CRT-style questions, respond as a person described as: \"{crt_sentence}\"",
+          "usage_notes": [
+            "The simulator should allow two modes: (a) numeric-only specification, passing crt2_level as a variable, and (b) full descriptive specification using the corresponding sentence.",
+            "No instruction should mention scores, correctness, or 'being wrong'; the sentences describe thinking style only.",
+            "For now, no optimisation loop over prompts is included; the simulator simply instantiates these fixed descriptions per level."
+          ]
+        }
+      }
+    }
+  },
+  "file_summaries": [
+    {
+      "file_name": "synthetic_personas.csv",
+      "file_type": "csv",
+      "semantic_summary": "- **Overall data structure and type**\n  - Tabular dataset (CSV), where each row represents one synthetic human persona.\n  - Columns are all scalar values (no nested objects): demographic variables, psychometric/trait scores, and attention-check flag.\n  - Data types:\n    - Categorical/string: `Country`, `Employment Status`, `Occupation_cat`, `sex`, `Highest education level completed`, `Ethnicity Simplified`.\n    - Numeric (continuous/float): `CRT2_Total_adj`, `BCRT_Total`, `CRT_Combined`, `NFC_Total`, all `BFI_*` domains (1\u20135 in .5 steps), `Age`.\n    - Binary/int: `BFI_Attn_Pass`.\n\n- **Relationships or nested elements**\n  - Each row is self-contained: no explicit hierarchy or nested structures.\n  - Implicit groupings:\n    - **Demographic profile**: Country, employment, occupation, sex, education, ethnicity, age. These jointly define the \u201cbackground story\u201d for a persona.\n    - **Cognitive reflection / reasoning**:\n      - `CRT2_Total_adj`: continuous CRT2-like score for mapping to discrete CRT levels (0\u20134).\n      - `BCRT_Total`: behavioural CRT component.\n      - `CRT_Combined`: overall CRT composite; can be used as an alternative mapping anchor.\n    - **Need for Cognition**:\n      - `NFC_Total`: single continuous score to be linearly mapped to the 1\u20139 NFC level for prompt construction.\n    - **Personality (BFI-brief)**:\n      - `BFI_Extraversion`, `BFI_Agreeableness`, `BFI_Conscientiousness`, `BFI_Neuroticism`, `BFI_Openness`: domain scores that must be:\n        - Binned into low/neutral/high for coarse numeric/descriptive prompts.\n        - Linearly mapped 1\u20135 \u2192 1\u20139 for granular Serapio-style prompts.\n    - **Data quality**:\n      - `BFI_Attn_Pass`: indicates whether the synthetic persona passed an attention check; can filter which rows to simulate.\n\n- **How this data should inform simulation entities or interactions**\n  - **Persona configuration (prompting)**:\n    - For each row, build a base persona prompt that includes:\n      - Demographics (e.g., \u201ca 31-year-old Asian male in the UK, working part-time in administrative/secretarial work, with a graduate degree\u201d).\n      - BFI traits:\n        - Coarse: classify each domain as low/neutral/high using the provided bin rules, then:\n          - Numeric: \u201cYou are a person with high extraversion.\u201d\n          - Descriptive: use trait-specific adjectives from `serapio_goldberg_markers.csv`.\n        - Granular (Serapio): map each 1\u20135 score to a 1\u20139 level and apply the relevant qualifier phrase (\u201cextremely / very / a bit \u2026\u201d) plus low/high pole adjectives.\n      - NFC:\n        - Map `NFC_Total` linearly into a 1\u20139 Need for Cognition level.\n        - Use the high/low descriptor sets and qualifier rules to generate an NFC-focused self-description clause.\n      - CRT2:\n        - Map `CRT2_Total_adj` (or `CRT_Combined`) to a CRT2 level 0\u20134 (e.g., via quantiles or thresholds chosen in the simulation code).\n        - Attach the corresponding thinking-style sentence from the CRT level descriptions.\n  - **Test administration logic**:\n    - Each configured persona is then queried with:\n      - Psychometric tests (CRT2, bCRT, NFC-18, BFI-brief) in the specified administration mode (`per_item`, `per_test`, `all_tests`).\n      - Writing / reflection tasks.\n    - The row\u2019s trait scores serve as the \u201cground truth\u201d targets to compare against:\n      - Trait fidelity: compare obtained test scores to `BFI_*`, `NFC_Total`, and CRT scores.\n      - Behavioural alignment: regress features of written responses on the personas\u2019 NFC/CRT/BFI levels.\n      - Response consistency: compute reliability metrics within tests; use the same persona prompt for repeated or shuffled-item runs.\n  - **Output structuring**:\n    - Each LLM response batch should be stored in JSON and merged back to the originating row via row index or a generated `persona_id`.\n    - Final dataset rows represent (persona \u00d7 test instance), with all original CSV fields plus:\n      - Prompt specification metadata (e.g., BFI binning, NFC/CRT levels, chosen descriptors).\n      - Raw and scored responses for all administered tests and writing tasks."
+    },
+    {
+      "file_name": "crt2_items.yaml",
+      "file_type": "yaml",
+      "semantic_summary": "- **Overall data structure and type**  \n  - Human-readable **YAML configuration file** defining a single psychometric test.  \n  - Top-level keys:\n    - `id`: machine-readable identifier of the test (`\"crt2\"`).\n    - `name`: human-readable label (`\"Cognitive Reflection Test 2\"`).\n    - `items`: ordered list (array) of item objects/questions.\n\n- **Relationships / nested elements**  \n  - `items` is a **list of dictionaries**, each with:\n    - `id`: unique item identifier within the test (e.g., `crt2_q1`).\n    - `question`: the item text presented to the persona.\n  - Implicit relationship:\n    - All `items` belong to the test identified by `id: crt2`.\n    - Item order in the list is the default administration order; it may be shuffled according to simulation settings.\n\n- **How this data should inform simulation entities or interactions**  \n  - Defines the **item pool for the CRT2 test**, which is directly tied to the persona\u2019s `crt2_level` thinking-style specification in the task description.\n  - For each persona:\n    - The simulation engine uses `items` to generate prompts in the chosen **administration mode**:\n      - `per_item`: pair persona prompt + one `question` at a time.\n      - `per_test`: persona prompt + all `items` for `crt2`.\n      - `all_tests`: embed these `items` alongside other tests in one composite prompt.\n    - `id` and `items[i].id` should be carried into the **structured JSON output** to link:\n      - persona row \u2192 test (`crt2`) \u2192 specific item responses.\n  - Supports **shuffling logic**:\n    - `items` list can be shuffled when `shuffle_items_within_tests` is enabled, while keeping each `item.id` as the stable key for analysis.\n  - In evaluation:\n    - Responses to these `question`s are scored externally to obtain **obtained CRT2 scores**, which are then compared against:\n      - The persona\u2019s target CRT2 level (`crt2_level` in 0\u20134 specification).\n      - Trait fidelity and behavioural alignment metrics."
+    },
+    {
+      "file_name": "bcrt_items.yaml",
+      "file_type": "yaml",
+      "semantic_summary": "- **Overall data structure and type**  \n  - YAML file defining a **single psychometric instrument**: `id: bcrt`, `name: Bespoke Cognitive Reflection Test`.  \n  - Contains a top-level `items` list, where each element is a **question object** with:\n    - `id` (e.g., `bcrt_q1`)\n    - `question` (a natural-language CRT-style problem).\n\n- **Relationships / nested elements**  \n  - Hierarchy: **Test \u2192 Items \u2192 (id, question)**.  \n  - All items belong to the same test (`bcrt`), and are ordered as listed in `items`.  \n  - Each `item.id` should be used as a stable key to link:\n    - The question text sent to the persona.\n    - The response and any scoring/metadata recorded in the output JSON.\n\n- **How this data should inform simulation entities or interactions**  \n  - The `bcrt` object defines **one of the CRT-style measures** used to evaluate personas\u2019 reflective thinking, complementing CRT2 levels specified in persona traits.  \n  - For each configured persona and chosen administration mode:\n    - **per_item**: Send one `items[n].question` per API call with persona prompt; log responses keyed by `bcrt_q*`.\n    - **per_test**: Send all `items` for `bcrt` in one call; preserve item IDs and order (or tracked shuffled order) in the JSON.  \n    - **all_tests**: Embed the full `bcrt` item set within the larger multi-test prompt.  \n  - The responses to these `bcrt` items should be:\n    - Stored in structured JSON as `{ persona_fields\u2026, test_id: \"bcrt\", item_id: \"bcrt_q1\", question: \"...\", response: \"...\" }`.  \n    - Later **scored for correctness** to derive a bCRT score, which can be compared against:\n      - Persona CRT2 trait levels (trait_fidelity, monotonicity).\n      - Other behavioural outputs (e.g., writing tasks) for behavioural_alignment.  \n  - The file itself provides **content only** (no scoring rules or trait mappings), so scoring and linkage to persona CRT parameters must be handled by the simulation framework using these item IDs."
+    },
+    {
+      "file_name": "nfc18_items.yaml",
+      "file_type": "yaml",
+      "semantic_summary": "- **Overall data structure and type**\n  - Single YAML document defining one psychometric instrument.\n  - Top-level fields:\n    - `id`: machine\u2011readable test identifier (`nfc_short_18`).\n    - `name`: human\u2011readable test name.\n    - `instructions`: standardized stem to show before items (includes response scale anchors).\n    - `response_scale`: object specifying:\n      - `min`, `max` (1\u20135 Likert scale).\n      - `labels`: textual labels for each numeric option.\n    - `items`: list of 18 item objects.\n  - Each **item** has:\n    - `id`: numeric position (1\u201318).\n    - `text`: full item wording.\n\n- **Relationships / nested elements**\n  - `response_scale` applies uniformly to all `items` in this test.\n  - `items` is an ordered list; order matters for:\n    - default administration order,\n    - optional shuffling logic.\n  - Several items are **positively keyed** to Need for Cognition (e.g., \u201cI would prefer complex to simple problems\u201d), others are **reverse\u2011keyed** (e.g., \u201cThinking is not my idea of fun\u201d). This supports mapping between:\n    - the **NFC descriptors** in the persona specification (high vs low descriptors),\n    - the **item content** used to elicit responses.\n\n- **How this data should inform simulation entities or interactions**\n  - **Test administration:**\n    - This file defines the full content of the NFC\u201118 test for use in:\n      - `per_item` mode: present one `items[i].text` at a time with the shared `instructions` and response scale.\n      - `per_test` mode: present `instructions` once, then all `items` (optionally shuffled).\n      - `all_tests` mode: embed this NFC block alongside other tests and writing tasks.\n    - The `response_scale` should be used to:\n      - format response options in prompts,\n      - validate that simulated responses are integers 1\u20135 and interpretable.\n\n  - **Persona\u2013test alignment:**\n    - Persona NFC trait level (1\u20139) should influence **systematic response patterns** on these items:\n      - High NFC personas: higher scores on positively keyed items, lower on reverse\u2011keyed items.\n      - Low NFC personas: the opposite.\n    - The semantic overlap between the **high/low NFC descriptors** in the persona templates and the item texts (e.g., \u201cenjoys complex problems\u201d, \u201cprefers tasks that require little thought\u201d) enables:\n      - constructing prompts that anchor the LLM\u2019s behavior to the same construct being measured by these items,\n      - evaluating **trait_fidelity** by comparing target NFC level to the scale score derived from item responses.\n\n  - **Scoring and evaluation:**\n    - The `items` list supports:\n      - computing total or mean NFC scores per persona (after reverse\u2011scoring appropriate items),\n      - reliability indices (Cronbach\u2019s alpha/omega) for **response_consistency**.\n    - Item\u2011level responses can be merged with persona metadata to:\n      - run correlations and regressions for **trait_fidelity** and **behavioural_alignment** analyses.\n\nIn short, this YAML file is the canonical definition of the NFC\u201118 instrument\u2014its structure dictates how personas are questioned, how responses are formatted, and how NFC trait prompts should be calibrated and evaluated."
+    },
+    {
+      "file_name": "bfi10_items.yaml",
+      "file_type": "yaml",
+      "semantic_summary": "- **Overall data structure and type**  \n  - A single YAML object describing one psychometric instrument.  \n  - Top-level keys:  \n    - `id`: short identifier (`bfi_10`).  \n    - `name`: full test name.  \n    - `instructions`: item stem/instructions shown to the respondent.  \n    - `response_scale`: Likert scale metadata with numeric bounds and verbal labels.  \n    - `items`: ordered list of item objects.  \n  - Each item has:  \n    - `id` (1\u201310, integer, position in test)  \n    - `text` (full item wording)\n\n- **Relationships / nested elements**  \n  - `response_scale` applies uniformly to all `items`.  \n    - Contains `min`, `max` and a `labels` map that ties each numeric response option (1\u20135) to its verbal anchor.  \n  - `items` is a list nested under the test, not standalone; items are bound to the specific BFI-10 instrument (`id: bfi_10`).  \n  - Presentation order is implicitly the list order (1\u201310); this order can be preserved or programmatically shuffled depending on the chosen administration mode.\n\n- **How this data should inform simulation entities or interactions**  \n  - Defines the **BFI-10 test specification** used in the simulation pipeline:\n    - When administering BFI to a persona, the system should:\n      - Present `instructions` once per test call (per_test / all_tests modes) or reuse them per item (per_item mode).\n      - Present each `items[i].text` as the core question.\n      - Restrict or at least describe allowable responses using `response_scale.min/max` and the corresponding `labels`.\n  - For each simulated persona:\n    - This file provides the **item content** that the persona, already configured with Big Five traits (from `synthetic_personas.csv` and persona prompts), must respond to.  \n    - The reported responses (1\u20135) will later be:\n      - Scored back into Big Five dimensions.\n      - Compared to target trait scores to compute trait fidelity and internal consistency (e.g., Cronbach\u2019s alpha).\n  - In terms of interaction design:\n    - The YAML structure is directly convertible to a JSON test schema for API calls.\n    - It allows flexible administration modes:\n      - **per_item:** send one `items[k]` plus `instructions` and `response_scale`.\n      - **per_test:** send all `items` with shared `instructions` and a single description of `response_scale`.\n      - **all_tests:** embed this entire structure as the BFI-10 block among other tests in a multi-test prompt."
+    },
+    {
+      "file_name": "writing_tasks.yaml",
+      "file_type": "yaml",
+      "semantic_summary": "- **Overall structure & type**  \n  - `writing_tasks.yaml` is expected to be a *configuration* file in YAML format.  \n  - Semantically, it will define a *set of writing tasks* (prompts/instructions) plus any associated metadata (e.g., task IDs, categories, conditions, scoring tags).  \n  - Each task is likely represented as a mapping/dictionary (e.g., `id`, `prompt`, `instructions`, `condition_tags`, etc.) within a list or within named sections.\n\n- **Relationships / nested elements**  \n  - Top-level keys probably group tasks by *purpose* or *condition*, for example:\n    - Sections like `reflection_tasks`, `argumentative_tasks`, `narrative_tasks`, or similar.\n    - Optional parameters controlling *length constraints*, *perspective* (first-person vs third-person), or *time horizon* (short/long reflection).\n  - Individual task entries may include:\n    - A unique identifier (`task_id`) to match with outputs in the final JSON dataset.  \n    - The actual writing prompt (`text`/`prompt`/`description`).  \n    - Optional *experimental tags* linking tasks to traits or analyses (e.g., `targets_reflection`, `emotion_focus`, `abstract_vs_concrete`).  \n    - Possibly condition flags specifying which administration modes or test orderings they align with (e.g., `compatible_with: [all_tests, per_test]`).\n\n- **How it informs simulation entities & interactions**  \n  - **Persona conditioning**:  \n    - The tasks themselves do not define traits, but are *downstream behavioural probes* applied *after* the persona has been configured from `synthetic_personas.csv` and the BFI/NFC/CRT prompt templates.  \n    - Each persona will receive one or more of these tasks; the written responses become the behavioural outcomes used to compute LIWC-style features and check *behavioural_alignment* with trait parameters.\n  - **Administration logic**:  \n    - The YAML likely specifies which tasks are included under each administration mode (`per_item`, `per_test`, `all_tests`) or how they should be grouped when combined with psychometric tests.  \n    - Task metadata (e.g., `order`, `block`, `shuffle_group`) helps coordinate with the *shuffling_options* specified in the main task description, so that order effects can be controlled (fixed vs shuffled).\n  - **Data integration**:  \n    - Each writing-task response will be recorded in JSON along with:\n      - The originating persona row (demographics + trait scores).  \n      - The specific `writing_task_id` (from this YAML).  \n    - This enables linking writing features back to trait scores and administration conditions for analyses of *behavioural_alignment* and *response_consistency* (e.g., repeated or variant writing tasks across conditions)."
+    }
+  ],
+  "schemas": {
+    "synthetic_personas.csv": {
+      "file_type": "csv",
+      "row_count": 470,
+      "column_count": 17,
+      "columns": [
+        "Country",
+        "Employment Status",
+        "Occupation_cat",
+        "sex",
+        "Highest education level completed",
+        "Ethnicity Simplified",
+        "Age",
+        "CRT2_Total_adj",
+        "BCRT_Total",
+        "CRT_Combined",
+        "NFC_Total",
+        "BFI_Extraversion",
+        "BFI_Agreeableness",
+        "BFI_Conscientiousness",
+        "BFI_Neuroticism",
+        "BFI_Openness",
+        "BFI_Attn_Pass"
+      ],
+      "data_info": "<class 'pandas.core.frame.DataFrame'>\nRangeIndex: 470 entries, 0 to 469\nData columns (total 17 columns):\n #   Column                             Non-Null Count  Dtype  \n---  ------                             --------------  -----  \n 0   Country                            470 non-null    object \n 1   Employment Status                  470 non-null    object \n 2   Occupation_cat                     470 non-null    object \n 3   sex                                470 non-null    object \n 4   Highest education level completed  470 non-null    object \n 5   Ethnicity Simplified               470 non-null    object \n 6   Age                                470 non-null    int64  \n 7   CRT2_Total_adj                     470 non-null    float64\n 8   BCRT_Total                         470 non-null    float64\n 9   CRT_Combined                       470 non-null    float64\n 10  NFC_Total                          470 non-null    float64\n 11  BFI_Extraversion                   470 non-null    float64\n 12  BFI_Agreeableness                  470 non-null    float64\n 13  BFI_Conscientiousness              470 non-null    float64\n 14  BFI_Neuroticism                    470 non-null    float64\n 15  BFI_Openness                       470 non-null    float64\n 16  BFI_Attn_Pass                      470 non-null    int64  \ndtypes: float64(9), int64(2), object(6)\nmemory usage: 62.5+ KB\n",
+      "sample_data": [
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Working part-time",
+          "Occupation_cat": "Administrative and Secretarial Occupations",
+          "sex": "Male",
+          "Highest education level completed": "Graduate degree (MA/MSc/MPhil/other)",
+          "Ethnicity Simplified": "Asian",
+          "Age": 31,
+          "CRT2_Total_adj": 2.0,
+          "BCRT_Total": 0.0,
+          "CRT_Combined": 2.0,
+          "NFC_Total": 3.0,
+          "BFI_Extraversion": 2.0,
+          "BFI_Agreeableness": 1.5,
+          "BFI_Conscientiousness": 4.0,
+          "BFI_Neuroticism": 1.0,
+          "BFI_Openness": 5.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Working full-time",
+          "Occupation_cat": "Professional Occupations",
+          "sex": "Male",
+          "Highest education level completed": "Undergraduate degree (BA/BSc/other)",
+          "Ethnicity Simplified": "White",
+          "Age": 69,
+          "CRT2_Total_adj": 2.46619580726608,
+          "BCRT_Total": 0.0,
+          "CRT_Combined": 6.0,
+          "NFC_Total": 3.6666666666666665,
+          "BFI_Extraversion": 5.0,
+          "BFI_Agreeableness": 5.0,
+          "BFI_Conscientiousness": 5.0,
+          "BFI_Neuroticism": 1.5,
+          "BFI_Openness": 3.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Working full-time",
+          "Occupation_cat": "Associate Professional and Technical Occupations",
+          "sex": "Female",
+          "Highest education level completed": "Undergraduate degree (BA/BSc/other)",
+          "Ethnicity Simplified": "White",
+          "Age": 44,
+          "CRT2_Total_adj": 2.46619580726608,
+          "BCRT_Total": 2.0,
+          "CRT_Combined": 6.0,
+          "NFC_Total": 4.611111111111111,
+          "BFI_Extraversion": 1.0,
+          "BFI_Agreeableness": 4.0,
+          "BFI_Conscientiousness": 5.0,
+          "BFI_Neuroticism": 3.0,
+          "BFI_Openness": 4.5,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Working full-time",
+          "Occupation_cat": "Professional Occupations",
+          "sex": "Female",
+          "Highest education level completed": "High school diploma/A-levels",
+          "Ethnicity Simplified": "White",
+          "Age": 44,
+          "CRT2_Total_adj": 2.46619580726608,
+          "BCRT_Total": 1.0,
+          "CRT_Combined": 3.0,
+          "NFC_Total": 3.7222222222222223,
+          "BFI_Extraversion": 2.0,
+          "BFI_Agreeableness": 3.5,
+          "BFI_Conscientiousness": 4.0,
+          "BFI_Neuroticism": 2.0,
+          "BFI_Openness": 3.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Working full-time",
+          "Occupation_cat": "Managers, Directors and Senior Officials",
+          "sex": "Female",
+          "Highest education level completed": "Undergraduate degree (BA/BSc/other)",
+          "Ethnicity Simplified": "White",
+          "Age": 46,
+          "CRT2_Total_adj": 1.86654895181652,
+          "BCRT_Total": 0.0,
+          "CRT_Combined": 2.0,
+          "NFC_Total": 3.7222222222222223,
+          "BFI_Extraversion": 3.5,
+          "BFI_Agreeableness": 2.0,
+          "BFI_Conscientiousness": 4.5,
+          "BFI_Neuroticism": 1.0,
+          "BFI_Openness": 3.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United States",
+          "Employment Status": "Retired",
+          "Occupation_cat": "Other",
+          "sex": "Female",
+          "Highest education level completed": "Undergraduate degree (BA/BSc/other)",
+          "Ethnicity Simplified": "White",
+          "Age": 30,
+          "CRT2_Total_adj": 2.86654895181652,
+          "BCRT_Total": 2.0,
+          "CRT_Combined": 7.0,
+          "NFC_Total": 4.444444444444445,
+          "BFI_Extraversion": 3.0,
+          "BFI_Agreeableness": 3.5,
+          "BFI_Conscientiousness": 5.0,
+          "BFI_Neuroticism": 3.0,
+          "BFI_Openness": 5.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Unemployed and looking for work",
+          "Occupation_cat": "Administrative and Secretarial Occupations",
+          "sex": "Female",
+          "Highest education level completed": "High school diploma/A-levels",
+          "Ethnicity Simplified": "White",
+          "Age": 48,
+          "CRT2_Total_adj": 1.46619580726608,
+          "BCRT_Total": 2.0,
+          "CRT_Combined": 3.0,
+          "NFC_Total": 4.388888888888889,
+          "BFI_Extraversion": 2.0,
+          "BFI_Agreeableness": 4.0,
+          "BFI_Conscientiousness": 5.0,
+          "BFI_Neuroticism": 3.0,
+          "BFI_Openness": 3.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United States",
+          "Employment Status": "Working full-time",
+          "Occupation_cat": "Sales and Customer Service Occupations",
+          "sex": "Male",
+          "Highest education level completed": "Graduate degree (MA/MSc/MPhil/other)",
+          "Ethnicity Simplified": "White",
+          "Age": 43,
+          "CRT2_Total_adj": 2.7330979036330403,
+          "BCRT_Total": 1.0,
+          "CRT_Combined": 5.0,
+          "NFC_Total": 4.5,
+          "BFI_Extraversion": 2.5,
+          "BFI_Agreeableness": 5.0,
+          "BFI_Conscientiousness": 5.0,
+          "BFI_Neuroticism": 3.0,
+          "BFI_Openness": 4.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United Kingdom",
+          "Employment Status": "Retired",
+          "Occupation_cat": "Professional Occupations",
+          "sex": "Female",
+          "Highest education level completed": "Technical/community college",
+          "Ethnicity Simplified": "White",
+          "Age": 54,
+          "CRT2_Total_adj": 2.46619580726608,
+          "BCRT_Total": 2.0,
+          "CRT_Combined": 6.0,
+          "NFC_Total": 3.111111111111111,
+          "BFI_Extraversion": 3.5,
+          "BFI_Agreeableness": 1.5,
+          "BFI_Conscientiousness": 5.0,
+          "BFI_Neuroticism": 1.0,
+          "BFI_Openness": 4.0,
+          "BFI_Attn_Pass": 1
+        },
+        {
+          "Country": "United States",
+          "Employment Status": "Unemployed and looking for work",
+          "Occupation_cat": "Other",
+          "sex": "Male",
+          "Highest education level completed": "Undergraduate degree (BA/BSc/other)",
+          "Ethnicity Simplified": "White",
+          "Age": 49,
+          "CRT2_Total_adj": 2.59964685544956,
+          "BCRT_Total": 2.0,
+          "CRT_Combined": 7.0,
+          "NFC_Total": 4.388888888888889,
+          "BFI_Extraversion": 3.5,
+          "BFI_Agreeableness": 1.5,
+          "BFI_Conscientiousness": 4.0,
+          "BFI_Neuroticism": 5.0,
+          "BFI_Openness": 2.0,
+          "BFI_Attn_Pass": 1
+        }
+      ],
+      "dtypes": {
+        "Country": "object",
+        "Employment Status": "object",
+        "Occupation_cat": "object",
+        "sex": "object",
+        "Highest education level completed": "object",
+        "Ethnicity Simplified": "object",
+        "Age": "int64",
+        "CRT2_Total_adj": "float64",
+        "BCRT_Total": "float64",
+        "CRT_Combined": "float64",
+        "NFC_Total": "float64",
+        "BFI_Extraversion": "float64",
+        "BFI_Agreeableness": "float64",
+        "BFI_Conscientiousness": "float64",
+        "BFI_Neuroticism": "float64",
+        "BFI_Openness": "float64",
+        "BFI_Attn_Pass": "int64"
+      },
+      "file_semantic_summary": "- **Overall data structure and type**\n  - Tabular dataset (CSV), where each row represents one synthetic human persona.\n  - Columns are all scalar values (no nested objects): demographic variables, psychometric/trait scores, and attention-check flag.\n  - Data types:\n    - Categorical/string: `Country`, `Employment Status`, `Occupation_cat`, `sex`, `Highest education level completed`, `Ethnicity Simplified`.\n    - Numeric (continuous/float): `CRT2_Total_adj`, `BCRT_Total`, `CRT_Combined`, `NFC_Total`, all `BFI_*` domains (1\u20135 in .5 steps), `Age`.\n    - Binary/int: `BFI_Attn_Pass`.\n\n- **Relationships or nested elements**\n  - Each row is self-contained: no explicit hierarchy or nested structures.\n  - Implicit groupings:\n    - **Demographic profile**: Country, employment, occupation, sex, education, ethnicity, age. These jointly define the \u201cbackground story\u201d for a persona.\n    - **Cognitive reflection / reasoning**:\n      - `CRT2_Total_adj`: continuous CRT2-like score for mapping to discrete CRT levels (0\u20134).\n      - `BCRT_Total`: behavioural CRT component.\n      - `CRT_Combined`: overall CRT composite; can be used as an alternative mapping anchor.\n    - **Need for Cognition**:\n      - `NFC_Total`: single continuous score to be linearly mapped to the 1\u20139 NFC level for prompt construction.\n    - **Personality (BFI-brief)**:\n      - `BFI_Extraversion`, `BFI_Agreeableness`, `BFI_Conscientiousness`, `BFI_Neuroticism`, `BFI_Openness`: domain scores that must be:\n        - Binned into low/neutral/high for coarse numeric/descriptive prompts.\n        - Linearly mapped 1\u20135 \u2192 1\u20139 for granular Serapio-style prompts.\n    - **Data quality**:\n      - `BFI_Attn_Pass`: indicates whether the synthetic persona passed an attention check; can filter which rows to simulate.\n\n- **How this data should inform simulation entities or interactions**\n  - **Persona configuration (prompting)**:\n    - For each row, build a base persona prompt that includes:\n      - Demographics (e.g., \u201ca 31-year-old Asian male in the UK, working part-time in administrative/secretarial work, with a graduate degree\u201d).\n      - BFI traits:\n        - Coarse: classify each domain as low/neutral/high using the provided bin rules, then:\n          - Numeric: \u201cYou are a person with high extraversion.\u201d\n          - Descriptive: use trait-specific adjectives from `serapio_goldberg_markers.csv`.\n        - Granular (Serapio): map each 1\u20135 score to a 1\u20139 level and apply the relevant qualifier phrase (\u201cextremely / very / a bit \u2026\u201d) plus low/high pole adjectives.\n      - NFC:\n        - Map `NFC_Total` linearly into a 1\u20139 Need for Cognition level.\n        - Use the high/low descriptor sets and qualifier rules to generate an NFC-focused self-description clause.\n      - CRT2:\n        - Map `CRT2_Total_adj` (or `CRT_Combined`) to a CRT2 level 0\u20134 (e.g., via quantiles or thresholds chosen in the simulation code).\n        - Attach the corresponding thinking-style sentence from the CRT level descriptions.\n  - **Test administration logic**:\n    - Each configured persona is then queried with:\n      - Psychometric tests (CRT2, bCRT, NFC-18, BFI-brief) in the specified administration mode (`per_item`, `per_test`, `all_tests`).\n      - Writing / reflection tasks.\n    - The row\u2019s trait scores serve as the \u201cground truth\u201d targets to compare against:\n      - Trait fidelity: compare obtained test scores to `BFI_*`, `NFC_Total`, and CRT scores.\n      - Behavioural alignment: regress features of written responses on the personas\u2019 NFC/CRT/BFI levels.\n      - Response consistency: compute reliability metrics within tests; use the same persona prompt for repeated or shuffled-item runs.\n  - **Output structuring**:\n    - Each LLM response batch should be stored in JSON and merged back to the originating row via row index or a generated `persona_id`.\n    - Final dataset rows represent (persona \u00d7 test instance), with all original CSV fields plus:\n      - Prompt specification metadata (e.g., BFI binning, NFC/CRT levels, chosen descriptors).\n      - Raw and scored responses for all administered tests and writing tasks."
+    },
+    "crt2_items.yaml": {
+      "file_type": "yaml",
+      "raw_text": "id: crt2\nname: Cognitive Reflection Test 2\n\nitems:\n  - id: crt2_q1\n    question: \"If you're running a race and you pass the person in second place, what place are you in?\"\n\n  - id: crt2_q2\n    question: \"A farmer had 15 sheep and all but 8 died. How many are left?\"\n\n  - id: crt2_q3\n    question: \"EEmily's father has three daughters. The first two are named April and May. What is the third daughter's name?\"\n\n  - id: crt2_q4\n    question: \"How many cubic feet of dirt are there in a hole that is 3' deep x 3' wide x 3' long?\"",
+      "data_type": "object",
+      "length": 3,
+      "sample_data": {
+        "id": "crt2",
+        "name": "Cognitive Reflection Test 2",
+        "items": [
+          {
+            "id": "crt2_q1",
+            "question": "If you're running a race and you pass the person in second place, what place are you in?"
+          },
+          {
+            "id": "crt2_q2",
+            "question": "A farmer had 15 sheep and all but 8 died. How many are left?"
+          },
+          {
+            "id": "crt2_q3",
+            "question": "EEmily's father has three daughters. The first two are named April and May. What is the third daughter's name?"
+          },
+          {
+            "id": "crt2_q4",
+            "question": "How many cubic feet of dirt are there in a hole that is 3' deep x 3' wide x 3' long?"
+          }
+        ]
+      },
+      "keys": [
+        "id",
+        "name",
+        "items"
+      ],
+      "file_semantic_summary": "- **Overall data structure and type**  \n  - Human-readable **YAML configuration file** defining a single psychometric test.  \n  - Top-level keys:\n    - `id`: machine-readable identifier of the test (`\"crt2\"`).\n    - `name`: human-readable label (`\"Cognitive Reflection Test 2\"`).\n    - `items`: ordered list (array) of item objects/questions.\n\n- **Relationships / nested elements**  \n  - `items` is a **list of dictionaries**, each with:\n    - `id`: unique item identifier within the test (e.g., `crt2_q1`).\n    - `question`: the item text presented to the persona.\n  - Implicit relationship:\n    - All `items` belong to the test identified by `id: crt2`.\n    - Item order in the list is the default administration order; it may be shuffled according to simulation settings.\n\n- **How this data should inform simulation entities or interactions**  \n  - Defines the **item pool for the CRT2 test**, which is directly tied to the persona\u2019s `crt2_level` thinking-style specification in the task description.\n  - For each persona:\n    - The simulation engine uses `items` to generate prompts in the chosen **administration mode**:\n      - `per_item`: pair persona prompt + one `question` at a time.\n      - `per_test`: persona prompt + all `items` for `crt2`.\n      - `all_tests`: embed these `items` alongside other tests in one composite prompt.\n    - `id` and `items[i].id` should be carried into the **structured JSON output** to link:\n      - persona row \u2192 test (`crt2`) \u2192 specific item responses.\n  - Supports **shuffling logic**:\n    - `items` list can be shuffled when `shuffle_items_within_tests` is enabled, while keeping each `item.id` as the stable key for analysis.\n  - In evaluation:\n    - Responses to these `question`s are scored externally to obtain **obtained CRT2 scores**, which are then compared against:\n      - The persona\u2019s target CRT2 level (`crt2_level` in 0\u20134 specification).\n      - Trait fidelity and behavioural alignment metrics."
+    },
+    "bcrt_items.yaml": {
+      "file_type": "yaml",
+      "raw_text": "id: bcrt\nname: Bespoke Cognitive Reflection Test\n\nitems:\n  - id: bcrt_q1\n    question: \"A man buys a cow for $800, sells it for $1000, buys it back for $1100, and sells it again for $1300. How much profit?\"\n\n  - id: bcrt_q2\n    question: \"A snail climbs a 10-foot wall, going up 3 feet each day and slipping down 2 feet each night. How many days to reach the top?\"\n\n  - id: bcrt_q3\n    question: \"A rope ladder hangs from a ship with rungs 20 cm apart. The tide rises 15 cm/hour. How long until three rungs are underwater?\"\n\n  - id: bcrt_q4\n    question: \"Jack is looking at Anne, and Anne is looking at George. Jack is married, George is not. Is a married person looking at an unmarried person?\"",
+      "data_type": "object",
+      "length": 3,
+      "sample_data": {
+        "id": "bcrt",
+        "name": "Bespoke Cognitive Reflection Test",
+        "items": [
+          {
+            "id": "bcrt_q1",
+            "question": "A man buys a cow for $800, sells it for $1000, buys it back for $1100, and sells it again for $1300. How much profit?"
+          },
+          {
+            "id": "bcrt_q2",
+            "question": "A snail climbs a 10-foot wall, going up 3 feet each day and slipping down 2 feet each night. How many days to reach the top?"
+          },
+          {
+            "id": "bcrt_q3",
+            "question": "A rope ladder hangs from a ship with rungs 20 cm apart. The tide rises 15 cm/hour. How long until three rungs are underwater?"
+          },
+          {
+            "id": "bcrt_q4",
+            "question": "Jack is looking at Anne, and Anne is looking at George. Jack is married, George is not. Is a married person looking at an unmarried person?"
+          }
+        ]
+      },
+      "keys": [
+        "id",
+        "name",
+        "items"
+      ],
+      "file_semantic_summary": "- **Overall data structure and type**  \n  - YAML file defining a **single psychometric instrument**: `id: bcrt`, `name: Bespoke Cognitive Reflection Test`.  \n  - Contains a top-level `items` list, where each element is a **question object** with:\n    - `id` (e.g., `bcrt_q1`)\n    - `question` (a natural-language CRT-style problem).\n\n- **Relationships / nested elements**  \n  - Hierarchy: **Test \u2192 Items \u2192 (id, question)**.  \n  - All items belong to the same test (`bcrt`), and are ordered as listed in `items`.  \n  - Each `item.id` should be used as a stable key to link:\n    - The question text sent to the persona.\n    - The response and any scoring/metadata recorded in the output JSON.\n\n- **How this data should inform simulation entities or interactions**  \n  - The `bcrt` object defines **one of the CRT-style measures** used to evaluate personas\u2019 reflective thinking, complementing CRT2 levels specified in persona traits.  \n  - For each configured persona and chosen administration mode:\n    - **per_item**: Send one `items[n].question` per API call with persona prompt; log responses keyed by `bcrt_q*`.\n    - **per_test**: Send all `items` for `bcrt` in one call; preserve item IDs and order (or tracked shuffled order) in the JSON.  \n    - **all_tests**: Embed the full `bcrt` item set within the larger multi-test prompt.  \n  - The responses to these `bcrt` items should be:\n    - Stored in structured JSON as `{ persona_fields\u2026, test_id: \"bcrt\", item_id: \"bcrt_q1\", question: \"...\", response: \"...\" }`.  \n    - Later **scored for correctness** to derive a bCRT score, which can be compared against:\n      - Persona CRT2 trait levels (trait_fidelity, monotonicity).\n      - Other behavioural outputs (e.g., writing tasks) for behavioural_alignment.  \n  - The file itself provides **content only** (no scoring rules or trait mappings), so scoring and linkage to persona CRT parameters must be handled by the simulation framework using these item IDs."
+    },
+    "nfc18_items.yaml": {
+      "file_type": "yaml",
+      "raw_text": "id: nfc_short_18\nname: Need for Cognition Scale - Short Form (18 items)\ninstructions: >\n  For each of the statements below, please indicate to what extent the\n  statement is characteristic of you.\n  1 = extremely uncharacteristic; 2 = somewhat uncharacteristic;\n  3 = uncertain; 4 = somewhat characteristic;\n  5 = extremely characteristic.\nresponse_scale:\n  min: 1\n  max: 5\n  labels:\n    1: extremely uncharacteristic\n    2: somewhat uncharacteristic\n    3: uncertain\n    4: somewhat characteristic\n    5: extremely characteristic\n\nitems:\n  - id: 1\n    text: \"I would prefer complex to simple problems.\"\n\n  - id: 2\n    text: \"I like to have the responsibility of handling a situation that requires a lot of thinking.\"\n\n  - id: 3\n    text: \"Thinking is not my idea of fun.\"\n\n  - id: 4\n    text: \"I would rather do something that requires little thought than something that is sure to challenge my thinking abilities.\"\n\n  - id: 5\n    text: \"I try to anticipate and avoid situations where there is a likely chance I will have to think in depth about something.\"\n\n  - id: 6\n    text: \"I find satisfaction in deliberating hard and for long hours.\"\n\n  - id: 7\n    text: \"I only think as hard as I have to.\"\n\n  - id: 8\n    text: \"I prefer to think about small, daily projects rather than long-term ones.\"\n\n  - id: 9\n    text: \"I like tasks that require little thought once I've learned them.\"\n\n  - id: 10\n    text: \"The idea of relying on thought to make my way to the top appeals to me.\"\n\n  - id: 11\n    text: \"I really enjoy a task that involves coming up with new solutions to problems.\"\n\n  - id: 12\n    text: \"Learning new ways to think doesn't excite me very much.\"\n\n  - id: 13\n    text: \"I prefer my life to be filled with puzzles that I must solve.\"\n\n  - id: 14\n    text: \"The notion of thinking abstractly is appealing to me.\"\n\n  - id: 15\n    text: \"I would prefer a task that is intellectual, difficult, and important to one that is somewhat important but does not require much thought.\"\n\n  - id: 16\n    text: \"I feel relief rather than satisfaction after completing a task that required a lot of mental effort.\"\n\n  - id: 17\n    text: \"It's enough for me that something gets the job done; I don't care how or why it works.\"\n\n  - id: 18\n    text: \"I usually end up deliberating about issues even when they do not affect me personally.\"",
+      "data_type": "object",
+      "length": 5,
+      "sample_data": {
+        "id": "nfc_short_18",
+        "name": "Need for Cognition Scale - Short Form (18 items)",
+        "instructions": "For each of the statements below, please indicate to what extent the statement is characteristic of you. 1 = extremely uncharacteristic; 2 = somewhat uncharacteristic; 3 = uncertain; 4 = somewhat characteristic; 5 = extremely characteristic.\n",
+        "response_scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {
+            "1": "extremely uncharacteristic",
+            "2": "somewhat uncharacteristic",
+            "3": "uncertain",
+            "4": "somewhat characteristic",
+            "5": "extremely characteristic"
+          }
+        },
+        "items": [
+          {
+            "id": 1,
+            "text": "I would prefer complex to simple problems."
+          },
+          {
+            "id": 2,
+            "text": "I like to have the responsibility of handling a situation that requires a lot of thinking."
+          },
+          {
+            "id": 3,
+            "text": "Thinking is not my idea of fun."
+          },
+          {
+            "id": 4,
+            "text": "I would rather do something that requires little thought than something that is sure to challenge my thinking abilities."
+          },
+          {
+            "id": 5,
+            "text": "I try to anticipate and avoid situations where there is a likely chance I will have to think in depth about something."
+          },
+          {
+            "id": 6,
+            "text": "I find satisfaction in deliberating hard and for long hours."
+          },
+          {
+            "id": 7,
+            "text": "I only think as hard as I have to."
+          },
+          {
+            "id": 8,
+            "text": "I prefer to think about small, daily projects rather than long-term ones."
+          },
+          {
+            "id": 9,
+            "text": "I like tasks that require little thought once I've learned them."
+          },
+          {
+            "id": 10,
+            "text": "The idea of relying on thought to make my way to the top appeals to me."
+          },
+          {
+            "id": 11,
+            "text": "I really enjoy a task that involves coming up with new solutions to problems."
+          },
+          {
+            "id": 12,
+            "text": "Learning new ways to think doesn't excite me very much."
+          },
+          {
+            "id": 13,
+            "text": "I prefer my life to be filled with puzzles that I must solve."
+          },
+          {
+            "id": 14,
+            "text": "The notion of thinking abstractly is appealing to me."
+          },
+          {
+            "id": 15,
+            "text": "I would prefer a task that is intellectual, difficult, and important to one that is somewhat important but does not require much thought."
+          },
+          {
+            "id": 16,
+            "text": "I feel relief rather than satisfaction after completing a task that required a lot of mental effort."
+          },
+          {
+            "id": 17,
+            "text": "It's enough for me that something gets the job done; I don't care how or why it works."
+          },
+          {
+            "id": 18,
+            "text": "I usually end up deliberating about issues even when they do not affect me personally."
+          }
+        ]
+      },
+      "keys": [
+        "id",
+        "name",
+        "instructions",
+        "response_scale",
+        "items"
+      ],
+      "file_semantic_summary": "- **Overall data structure and type**\n  - Single YAML document defining one psychometric instrument.\n  - Top-level fields:\n    - `id`: machine\u2011readable test identifier (`nfc_short_18`).\n    - `name`: human\u2011readable test name.\n    - `instructions`: standardized stem to show before items (includes response scale anchors).\n    - `response_scale`: object specifying:\n      - `min`, `max` (1\u20135 Likert scale).\n      - `labels`: textual labels for each numeric option.\n    - `items`: list of 18 item objects.\n  - Each **item** has:\n    - `id`: numeric position (1\u201318).\n    - `text`: full item wording.\n\n- **Relationships / nested elements**\n  - `response_scale` applies uniformly to all `items` in this test.\n  - `items` is an ordered list; order matters for:\n    - default administration order,\n    - optional shuffling logic.\n  - Several items are **positively keyed** to Need for Cognition (e.g., \u201cI would prefer complex to simple problems\u201d), others are **reverse\u2011keyed** (e.g., \u201cThinking is not my idea of fun\u201d). This supports mapping between:\n    - the **NFC descriptors** in the persona specification (high vs low descriptors),\n    - the **item content** used to elicit responses.\n\n- **How this data should inform simulation entities or interactions**\n  - **Test administration:**\n    - This file defines the full content of the NFC\u201118 test for use in:\n      - `per_item` mode: present one `items[i].text` at a time with the shared `instructions` and response scale.\n      - `per_test` mode: present `instructions` once, then all `items` (optionally shuffled).\n      - `all_tests` mode: embed this NFC block alongside other tests and writing tasks.\n    - The `response_scale` should be used to:\n      - format response options in prompts,\n      - validate that simulated responses are integers 1\u20135 and interpretable.\n\n  - **Persona\u2013test alignment:**\n    - Persona NFC trait level (1\u20139) should influence **systematic response patterns** on these items:\n      - High NFC personas: higher scores on positively keyed items, lower on reverse\u2011keyed items.\n      - Low NFC personas: the opposite.\n    - The semantic overlap between the **high/low NFC descriptors** in the persona templates and the item texts (e.g., \u201cenjoys complex problems\u201d, \u201cprefers tasks that require little thought\u201d) enables:\n      - constructing prompts that anchor the LLM\u2019s behavior to the same construct being measured by these items,\n      - evaluating **trait_fidelity** by comparing target NFC level to the scale score derived from item responses.\n\n  - **Scoring and evaluation:**\n    - The `items` list supports:\n      - computing total or mean NFC scores per persona (after reverse\u2011scoring appropriate items),\n      - reliability indices (Cronbach\u2019s alpha/omega) for **response_consistency**.\n    - Item\u2011level responses can be merged with persona metadata to:\n      - run correlations and regressions for **trait_fidelity** and **behavioural_alignment** analyses.\n\nIn short, this YAML file is the canonical definition of the NFC\u201118 instrument\u2014its structure dictates how personas are questioned, how responses are formatted, and how NFC trait prompts should be calibrated and evaluated."
+    },
+    "bfi10_items.yaml": {
+      "file_type": "yaml",
+      "raw_text": "id: bfi_10\nname: Big Five Inventory-10 (BFI-10)\ninstructions: \"How well do the following statements describe your personality?\"\n\nresponse_scale:\n  min: 1\n  max: 5\n  labels:\n    1: Disagree strongly\n    2: Disagree a little\n    3: Neither agree nor disagree\n    4: Agree a little\n    5: Agree strongly\n\nitems:\n  - id: 1\n    text: \"I see myself as someone who is reserved.\"\n  - id: 2\n    text: \"I see myself as someone who is generally trusting.\"\n  - id: 3\n    text: \"I see myself as someone who tends to be lazy.\"\n  - id: 4\n    text: \"I see myself as someone who is relaxed, handles stress well.\"\n  - id: 5\n    text: \"I see myself as someone who has few artistic interests.\"\n  - id: 6\n    text: \"I see myself as someone who is outgoing, sociable.\"\n  - id: 7\n    text: \"I see myself as someone who tends to find fault with others.\"\n  - id: 8\n    text: \"I see myself as someone who does a thorough job.\"\n  - id: 9\n    text: \"I see myself as someone who gets nervous easily.\"\n  - id: 10\n    text: \"I see myself as someone who has an active imagination.\"",
+      "data_type": "object",
+      "length": 5,
+      "sample_data": {
+        "id": "bfi_10",
+        "name": "Big Five Inventory-10 (BFI-10)",
+        "instructions": "How well do the following statements describe your personality?",
+        "response_scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {
+            "1": "Disagree strongly",
+            "2": "Disagree a little",
+            "3": "Neither agree nor disagree",
+            "4": "Agree a little",
+            "5": "Agree strongly"
+          }
+        },
+        "items": [
+          {
+            "id": 1,
+            "text": "I see myself as someone who is reserved."
+          },
+          {
+            "id": 2,
+            "text": "I see myself as someone who is generally trusting."
+          },
+          {
+            "id": 3,
+            "text": "I see myself as someone who tends to be lazy."
+          },
+          {
+            "id": 4,
+            "text": "I see myself as someone who is relaxed, handles stress well."
+          },
+          {
+            "id": 5,
+            "text": "I see myself as someone who has few artistic interests."
+          },
+          {
+            "id": 6,
+            "text": "I see myself as someone who is outgoing, sociable."
+          },
+          {
+            "id": 7,
+            "text": "I see myself as someone who tends to find fault with others."
+          },
+          {
+            "id": 8,
+            "text": "I see myself as someone who does a thorough job."
+          },
+          {
+            "id": 9,
+            "text": "I see myself as someone who gets nervous easily."
+          },
+          {
+            "id": 10,
+            "text": "I see myself as someone who has an active imagination."
+          }
+        ]
+      },
+      "keys": [
+        "id",
+        "name",
+        "instructions",
+        "response_scale",
+        "items"
+      ],
+      "file_semantic_summary": "- **Overall data structure and type**  \n  - A single YAML object describing one psychometric instrument.  \n  - Top-level keys:  \n    - `id`: short identifier (`bfi_10`).  \n    - `name`: full test name.  \n    - `instructions`: item stem/instructions shown to the respondent.  \n    - `response_scale`: Likert scale metadata with numeric bounds and verbal labels.  \n    - `items`: ordered list of item objects.  \n  - Each item has:  \n    - `id` (1\u201310, integer, position in test)  \n    - `text` (full item wording)\n\n- **Relationships / nested elements**  \n  - `response_scale` applies uniformly to all `items`.  \n    - Contains `min`, `max` and a `labels` map that ties each numeric response option (1\u20135) to its verbal anchor.  \n  - `items` is a list nested under the test, not standalone; items are bound to the specific BFI-10 instrument (`id: bfi_10`).  \n  - Presentation order is implicitly the list order (1\u201310); this order can be preserved or programmatically shuffled depending on the chosen administration mode.\n\n- **How this data should inform simulation entities or interactions**  \n  - Defines the **BFI-10 test specification** used in the simulation pipeline:\n    - When administering BFI to a persona, the system should:\n      - Present `instructions` once per test call (per_test / all_tests modes) or reuse them per item (per_item mode).\n      - Present each `items[i].text` as the core question.\n      - Restrict or at least describe allowable responses using `response_scale.min/max` and the corresponding `labels`.\n  - For each simulated persona:\n    - This file provides the **item content** that the persona, already configured with Big Five traits (from `synthetic_personas.csv` and persona prompts), must respond to.  \n    - The reported responses (1\u20135) will later be:\n      - Scored back into Big Five dimensions.\n      - Compared to target trait scores to compute trait fidelity and internal consistency (e.g., Cronbach\u2019s alpha).\n  - In terms of interaction design:\n    - The YAML structure is directly convertible to a JSON test schema for API calls.\n    - It allows flexible administration modes:\n      - **per_item:** send one `items[k]` plus `instructions` and `response_scale`.\n      - **per_test:** send all `items` with shared `instructions` and a single description of `response_scale`.\n      - **all_tests:** embed this entire structure as the BFI-10 block among other tests in a multi-test prompt."
+    },
+    "writing_tasks.yaml": {
+      "file_type": "yaml",
+      "data_type": "empty",
+      "raw_text": "",
+      "sample_data": "",
+      "file_semantic_summary": "- **Overall structure & type**  \n  - `writing_tasks.yaml` is expected to be a *configuration* file in YAML format.  \n  - Semantically, it will define a *set of writing tasks* (prompts/instructions) plus any associated metadata (e.g., task IDs, categories, conditions, scoring tags).  \n  - Each task is likely represented as a mapping/dictionary (e.g., `id`, `prompt`, `instructions`, `condition_tags`, etc.) within a list or within named sections.\n\n- **Relationships / nested elements**  \n  - Top-level keys probably group tasks by *purpose* or *condition*, for example:\n    - Sections like `reflection_tasks`, `argumentative_tasks`, `narrative_tasks`, or similar.\n    - Optional parameters controlling *length constraints*, *perspective* (first-person vs third-person), or *time horizon* (short/long reflection).\n  - Individual task entries may include:\n    - A unique identifier (`task_id`) to match with outputs in the final JSON dataset.  \n    - The actual writing prompt (`text`/`prompt`/`description`).  \n    - Optional *experimental tags* linking tasks to traits or analyses (e.g., `targets_reflection`, `emotion_focus`, `abstract_vs_concrete`).  \n    - Possibly condition flags specifying which administration modes or test orderings they align with (e.g., `compatible_with: [all_tests, per_test]`).\n\n- **How it informs simulation entities & interactions**  \n  - **Persona conditioning**:  \n    - The tasks themselves do not define traits, but are *downstream behavioural probes* applied *after* the persona has been configured from `synthetic_personas.csv` and the BFI/NFC/CRT prompt templates.  \n    - Each persona will receive one or more of these tasks; the written responses become the behavioural outcomes used to compute LIWC-style features and check *behavioural_alignment* with trait parameters.\n  - **Administration logic**:  \n    - The YAML likely specifies which tasks are included under each administration mode (`per_item`, `per_test`, `all_tests`) or how they should be grouped when combined with psychometric tests.  \n    - Task metadata (e.g., `order`, `block`, `shuffle_group`) helps coordinate with the *shuffling_options* specified in the main task description, so that order effects can be controlled (fixed vs shuffled).\n  - **Data integration**:  \n    - Each writing-task response will be recorded in JSON along with:\n      - The originating persona row (demographics + trait scores).  \n      - The specific `writing_task_id` (from this YAML).  \n    - This enables linking writing features back to trait scores and administration conditions for analyses of *behavioural_alignment* and *response_consistency* (e.g., repeated or variant writing tasks across conditions)."
+    }
+  }
+}

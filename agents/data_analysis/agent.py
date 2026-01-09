@@ -5,10 +5,12 @@ DataAnalysisAgent: Analyzes input data to extract patterns and calibration param
 import logging
 import os
 import json
-import pandas as pd
-import numpy as np
 from typing import Dict, Any, List, Optional, Tuple, Union
+
 import jsonschema
+import numpy as np
+import pandas as pd
+import yaml
 from jsonschema import validate, ValidationError
 
 from agents.base_agent import BaseAgent
@@ -128,6 +130,12 @@ class DataAnalysisAgent(BaseAgent):
                     # Validate pickle data structure using schema-based approach
                     self._check_pickle(data, basename, task_spec)
                     summary = self._get_semantic_summary(basename, data, 'pkl', task_description)
+                    file_summaries.append(summary)
+                
+                elif file_type == "yaml":
+                    yaml_data, raw_text = data_loader.load_yaml(file_path, return_raw=True)
+                    self._check_yaml(yaml_data, basename)
+                    summary = self._get_semantic_summary(basename, raw_text, 'yaml', task_description)
                     file_summaries.append(summary)
                 
                 self.logger.info(f"Successfully processed file: {file_path}")
@@ -268,6 +276,8 @@ class DataAnalysisAgent(BaseAgent):
                 elif file.endswith('.py'):
                     self.logger.info(f"Found Python file: {full_path}")
                     result.append({"path": rel_path, "type": "py"})
+                elif file.endswith('.yaml') or file.endswith('.yml'):
+                    result.append({"path": rel_path, "type": "yaml"})
         
         self.logger.info(f"Total files found: {len(result)} in path {data_path}")
         for f in result:
@@ -630,9 +640,23 @@ Provide only valid JSON that can be parsed. Don't include any other explanation 
         elif file_type == 'pkl' and isinstance(data, dict):
             sample_keys = list(data.keys())[:5]
             sample = {k: data[k] for k in sample_keys}
+        elif file_type == 'yaml':
+            if isinstance(data, str):
+                sample = data
+            else:
+                try:
+                    sample = yaml.safe_dump(data, sort_keys=False)
+                except Exception:
+                    sample = str(data)
         else:
             sample = str(data)[:500]
-        sample_str = json.dumps(sample, indent=2)
+        if isinstance(sample, str) and file_type == 'yaml':
+            sample_str = sample
+        else:
+            try:
+                sample_str = json.dumps(sample, indent=2)
+            except TypeError:
+                sample_str = str(sample)
         prompt = (
             f"Task Description: {task_description}\n\n"
             f"File: {file_name} (type: {file_type})\n"
@@ -705,6 +729,24 @@ Provide only valid JSON that can be parsed. Don't include any other explanation 
         # Use LLM for integrity check only on small files to avoid rate limiting
         if self._is_small_enough_for_llm(data):
             self._llm_integrity_check(data, file_name, "json")
+        else:
+            self.logger.info(f"File {file_name} too large for LLM integrity check, skipping")
+    
+    def _check_yaml(self, data: Any, file_name: str) -> None:
+        """
+        Basic validation for YAML content by leveraging JSON-style checks when possible.
+        """
+        if data is None:
+            self.logger.warning(f"YAML file {file_name} is empty after parsing")
+            return
+        
+        if isinstance(data, (dict, list)):
+            self._basic_json_structure_check(data, file_name)
+        else:
+            self.logger.info(f"YAML file {file_name} parsed into scalar of type {type(data).__name__}")
+        
+        if self._is_small_enough_for_llm(data):
+            self._llm_integrity_check(data, file_name, "yaml")
         else:
             self.logger.info(f"File {file_name} too large for LLM integrity check, skipping")
     
@@ -895,12 +937,16 @@ Provide only valid JSON that can be parsed. Don't include any other explanation 
             sample = data.head(3).to_dict(orient="records")
             row_count = len(data)
             column_info = {col: str(dtype) for col, dtype in data.dtypes.items()}
-        elif file_type == "json" and isinstance(data, dict):
+        elif file_type in {"json", "yaml"} and isinstance(data, dict):
             # Take just a few keys to avoid large payloads
             sample_keys = list(data.keys())[:3]
             sample = {k: data[k] for k in sample_keys}
             if len(data) > 3:
                 sample["__note__"] = f"Sample of {len(data)} total keys"
+        elif file_type in {"json", "yaml"} and isinstance(data, list):
+            sample = data[:3]
+            if len(data) > 3:
+                sample.append({"__note__": f"Sample of {len(data)} total entries"})
         elif file_type == "pickle":
             # For pickle, just provide type information
             sample = f"Data type: {type(data).__name__}"

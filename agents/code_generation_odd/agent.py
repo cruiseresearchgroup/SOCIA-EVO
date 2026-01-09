@@ -1,7 +1,8 @@
 """
 CodeGenerationAgent: Generates simulation code based on the model plan.
 """
-
+# todo self-loop code check and code improve, not using model plan
+# todo reasoning - medium
 import logging
 import os
 import json
@@ -32,7 +33,10 @@ class CodeGenerationAgent(BaseAgent):
         historical_fix_log: Optional[Dict[str, Any]] = None,
         mode: str = "full",
         selfloop: int = 3,
-        blueprint: Optional[Any] = None
+        blueprint: Optional[Any] = None,
+        output_dir: Optional[str] = None,
+        iteration: Optional[int] = None,
+        playbook: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate simulation code based on the model plan.
@@ -48,16 +52,20 @@ class CodeGenerationAgent(BaseAgent):
             mode: Workflow mode ('lite', 'medium', 'full'). Defaults to 'full'.
             selfloop: Number of self-checking loop attempts
             blueprint: Blueprint object for blueprint mode (optional)
+            output_dir: Output directory for saving intermediate code versions (optional)
+            iteration: Current iteration number for file naming (optional)
         
         Returns:
             Dictionary containing the generated code and metadata
         """
         self.logger.info("Generating simulation code")
         
-        # Log blueprint usage if available
+        # Log blueprint / playbook usage if available
         if blueprint is not None:
             self.logger.info("Using blueprint for code generation in blueprint mode")
             self.logger.debug(f"Blueprint contains {len(blueprint)} items")
+        if playbook is not None:
+            self.logger.info("Playbook provided to code generation (ACE/ODD mode)")
         
         # # Override model_plan data_sources with processed file paths (skip in lite mode)
         # if mode != "lite" and model_plan and data_analysis and "file_references" in data_analysis:
@@ -81,13 +89,16 @@ class CodeGenerationAgent(BaseAgent):
             "feedback": feedback,
             "data_path": data_path,
             "previous_code": previous_code,
-            "mode": mode
+            "mode": mode,
+            "playbook": playbook,
         }
         
         prompt = self._build_prompt(**prompt_args)
 
         # Call LLM to generate code
-        llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
+        # Use medium effort for initial generation to reduce timeout risk
+        # Self-loop will improve the code quality in subsequent iterations
+        llm_response = self._call_llm(prompt, reasoning={"effort": "medium"})
         
         # Extract code from the response
         # Since code generation typically produces Python code rather than JSON,
@@ -120,7 +131,10 @@ class CodeGenerationAgent(BaseAgent):
             model_plan=model_plan,
             feedback=feedback,
             historical_fix_log=historical_fix_log,
-            max_attempts=selfloop
+            max_attempts=selfloop,
+            mode=mode,
+            output_dir=output_dir,
+            iteration=iteration
         )
         
         # Generate a summary of the code
@@ -154,7 +168,10 @@ class CodeGenerationAgent(BaseAgent):
         model_plan: Dict[str, Any],
         feedback: Optional[Dict[str, Any]] = None,
         historical_fix_log: Optional[Dict[str, Any]] = None,
-        max_attempts: int = 3
+        max_attempts: int = 3,
+        mode: str = "full",
+        output_dir: Optional[str] = None,
+        iteration: Optional[int] = None
     ) -> str:
         """
         Run a self-checking loop to improve the generated code.
@@ -174,6 +191,9 @@ class CodeGenerationAgent(BaseAgent):
             feedback: Feedback from previous iterations (optional)
             historical_fix_log: Log of historical issues and their fix status (optional)
             max_attempts: Number of self-checking loop attempts
+            mode: Workflow mode ("full", "odd", etc.)
+            output_dir: Output directory for saving intermediate code versions (optional)
+            iteration: Current iteration number for file naming (optional)
             
         Returns:
             Improved code after self-checking loop
@@ -183,6 +203,11 @@ class CodeGenerationAgent(BaseAgent):
             self.logger.info("Self-checking loop disabled (max_attempts <= 0)")
             return improved_code
         
+        # Track best code to prevent catastrophic degradation
+        best_code = improved_code
+        best_issues_count = float('inf')  # Start with infinity
+        best_iteration = -1
+        
         for attempt in range(max_attempts):
             self.logger.info(f"Self-checking loop - Attempt {attempt + 1}/{max_attempts}")
             
@@ -191,7 +216,7 @@ class CodeGenerationAgent(BaseAgent):
             
             # Always run comprehensive code quality check
             # This covers syntax errors, placeholders, missing implementations, undefined references, etc.
-            issues.extend(self._perform_code_quality_check(improved_code, task_spec, model_plan))
+            issues.extend(self._perform_code_quality_check(improved_code, task_spec, model_plan, mode))
             
             # Run feedback-based check only if feedback exists
             if feedback:
@@ -212,39 +237,211 @@ class CodeGenerationAgent(BaseAgent):
             # Collect relevant fixed_log entries for reference
             fixed_log_references = self._collect_fixed_log_references(issues, historical_fix_log)
             
+            # Count issues before improvement for comparison
+            critical_issues_before = [issue for issue in issues if issue.get("severity") == "critical"]
+            total_issues_before = len(issues)
+            critical_issues_count_before = len(critical_issues_before)
+            
+            # Initialize best_issues_count on first iteration if needed
+            if attempt == 0 and best_issues_count == float('inf'):
+                best_issues_count = critical_issues_count_before
+                self.logger.info(f"Initial code has {critical_issues_count_before} critical issues")
+            
             # Improve the code based on issues and fixed_log references
             improved_code = self._improve_code_based_on_issues(
                 code=improved_code,
                 issues=issues,
                 fixed_log_references=fixed_log_references,
                 task_spec=task_spec,
-                model_plan=model_plan
+                model_plan=model_plan,
+                mode=mode
             )
+            
+            # Check if the improved code contains timeout error messages (from LLM response)
+            # This happens when API times out and returns error string instead of code
+            timeout_error_patterns = [
+                "Error: Request timed out",
+                "Request timed out",
+                "Error calling OpenAI API: Request timed out"
+            ]
+            has_timeout_error = any(pattern in improved_code for pattern in timeout_error_patterns)
             
             # Fix any unclosed docstrings that might have been introduced
             improved_code = self._fix_unclosed_docstrings(improved_code)
             
             # Check for syntax errors
+            has_syntax_error = False
             try:
                 compile(improved_code, '<improved>', 'exec')
                 self.logger.info("Improved code passed syntax check")
             except SyntaxError as err:
+                has_syntax_error = True
                 self.logger.warning(f"Syntax error in improved code: {err}")
                 # If this is the last attempt, we should at least make sure the code compiles
                 if attempt == max_attempts - 1:
                     improved_code = self._fix_syntax(improved_code, err)
             
+            # Save intermediate code to file (as iter{iteration}_loop{attempt})
+            if output_dir:
+                try:
+                    os.makedirs(output_dir, exist_ok=True)
+                    if iteration is not None:
+                        loop_code_path = os.path.join(output_dir, f"simulation_code_iter{iteration}_loop{attempt}.py")
+                    else:
+                        loop_code_path = os.path.join(output_dir, f"simulation_code_iter_loop{attempt}.py")
+                    with open(loop_code_path, 'w', encoding='utf-8') as f:
+                        f.write(improved_code)
+                    self.logger.info(f"Saved self-loop iteration {attempt} code to {loop_code_path}")
+                except Exception as e:
+                    self.logger.error(f"Error saving intermediate code: {e}")
+            
+            # Re-check code quality after improvement to compare
+            issues_after = self._perform_code_quality_check(improved_code, task_spec, model_plan, mode)
+            critical_issues_after = [issue for issue in issues_after if issue.get("severity") == "critical"]
+            total_issues_after = len(issues_after)
+            critical_issues_count_after = len(critical_issues_after)
+            
+            # Detect catastrophic degradation using multiple signals
+            is_degraded = self._detect_code_degradation(
+                code=improved_code,
+                has_syntax_error=has_syntax_error,
+                has_timeout_error=has_timeout_error,
+                current_critical_issues=critical_issues_count_after,
+                previous_critical_issues=critical_issues_count_before,
+                current_total_issues=total_issues_after,
+                previous_total_issues=total_issues_before
+            )
+            
+            if is_degraded:
+                self.logger.warning(f"Iteration {attempt}: Code degradation detected, reverting to best code for next iteration")
+                # Revert to best code for next iteration
+                improved_code = best_code
+            else:
+                # Update best code if quality improved or maintained (prioritize later versions)
+                # If issues decreased: clear improvement
+                # If issues same but not degraded: prioritize later version (may have other improvements)
+                if critical_issues_count_after < best_issues_count:
+                    self.logger.info(f"Iteration {attempt}: Code quality improved ({best_issues_count} -> {critical_issues_count_after} critical issues)")
+                    best_code = improved_code
+                    best_issues_count = critical_issues_count_after
+                    best_iteration = attempt
+                elif critical_issues_count_after == best_issues_count:
+                    # Issues count same, but prefer later version (may have other improvements like new features, better structure, non-critical fixes)
+                    self.logger.info(f"Iteration {attempt}: Code quality maintained ({critical_issues_count_after} critical issues), updating to latest version (may contain additional improvements)")
+                    best_code = improved_code
+                    best_issues_count = critical_issues_count_after
+                    best_iteration = attempt
+                else:
+                    # Issues increased (but not detected as degraded by _detect_code_degradation)
+                    # This should rarely happen, but keep the best version
+                    self.logger.warning(f"Iteration {attempt}: Code quality worsened ({best_issues_count} -> {critical_issues_count_after} critical issues), keeping previous best version")
+            
             # If this is the last attempt, log a warning
             if attempt == max_attempts - 1 and issues:
                 self.logger.warning("Maximum self-checking attempts reached but issues remain")
         
-        return improved_code
+        # Return best code instead of last iteration code
+        if best_iteration >= 0:
+            self.logger.info(f"Returning best code from iteration {best_iteration} with {best_issues_count} critical issues")
+        else:
+            self.logger.info("Returning original/initial code (no improvements made)")
+        
+        return best_code
+    
+    def _detect_code_degradation(
+        self,
+        code: str,
+        has_syntax_error: bool,
+        has_timeout_error: bool,
+        current_critical_issues: int,
+        previous_critical_issues: int,
+        current_total_issues: int,
+        previous_total_issues: int
+    ) -> bool:
+        """
+        Detect if code has catastrophically degraded (e.g., due to API timeout).
+        
+        Uses multiple signals:
+        1. Timeout error messages in code (from LLM response)
+        2. Code quality regression (more issues than before)
+        3. Code structure degradation (too short, syntax errors, etc.)
+        
+        Args:
+            code: The code to check
+            has_syntax_error: Whether the code has syntax errors
+            has_timeout_error: Whether the code contains timeout error messages
+            current_critical_issues: Number of critical issues in current code
+            previous_critical_issues: Number of critical issues before improvement
+            current_total_issues: Total number of issues in current code
+            previous_total_issues: Total number of issues before improvement
+            
+        Returns:
+            True if code is degraded, False otherwise
+        """
+        # Check 1: Timeout error in code (highest priority - direct indicator of API failure)
+        if has_timeout_error:
+            self.logger.warning("Code degradation: Contains timeout error message from LLM API")
+            return True
+        
+        # Check 2: Critical issues increased significantly (more than 10% increase)
+        if previous_critical_issues > 0:
+            critical_issues_increase = (current_critical_issues - previous_critical_issues) / previous_critical_issues
+            if critical_issues_increase > 0.1:  # More than 10% increase
+                self.logger.warning(
+                    f"Code degradation: Critical issues increased significantly "
+                    f"({previous_critical_issues} -> {current_critical_issues}, "
+                    f"{critical_issues_increase*100:.1f}% increase)"
+                )
+                return True
+        
+        # Check 3: Total issues increased significantly (more than 10% increase)
+        if previous_total_issues > 0:
+            total_issues_increase = (current_total_issues - previous_total_issues) / previous_total_issues
+            if total_issues_increase > 0.1:  # More than 10% increase
+                self.logger.warning(
+                    f"Code degradation: Total issues increased significantly "
+                    f"({previous_total_issues} -> {current_total_issues}, "
+                    f"{total_issues_increase*100:.1f}% increase)"
+                )
+                return True
+        
+        # Check 4: Code is suspiciously short (< 200 characters)
+        if len(code) < 200:
+            self.logger.warning(f"Code degradation: Code too short ({len(code)} chars)")
+            return True
+        
+        # Check 5: Contains error messages from API timeout (fallback check)
+        error_patterns = [
+            "Error: Request timed out",
+            "Error calling OpenAI API",
+            "Request timed out",
+            "failed to generate"
+        ]
+        code_lower = code.lower()
+        for pattern in error_patterns:
+            if pattern.lower() in code_lower:
+                self.logger.warning(f"Code degradation: Contains error message '{pattern}'")
+                return True
+        
+        # Check 6: Only has empty main() function
+        lines = [line.strip() for line in code.split('\n') if line.strip() and not line.strip().startswith('#')]
+        if len(lines) <= 3:  # e.g., "def main():", "pass", "main()"
+            self.logger.warning("Code degradation: Code has too few non-comment lines")
+            return True
+        
+        # Check 7: Has syntax error
+        if has_syntax_error:
+            self.logger.warning("Code degradation: Code has syntax errors")
+            return True
+        
+        return False
     
     def _perform_code_quality_check(
         self,
         code: str,
         task_spec: Dict[str, Any],
-        model_plan: Dict[str, Any]
+        model_plan: Dict[str, Any],
+        mode: str = "full"
     ) -> List[Dict[str, Any]]:
         """
         Perform a comprehensive code quality check.
@@ -263,11 +460,69 @@ class CodeGenerationAgent(BaseAgent):
             code: The code to check
             task_spec: Task specification from the Task Understanding Agent
             model_plan: Model plan from the Model Planning Agent
+            mode: Workflow mode ("full", "odd", etc.)
             
         Returns:
             List of issues found
         """
         self.logger.info("Performing comprehensive code quality check")
+
+        if mode in ("odd", "persona"):
+            # Extract blueprint from task_spec (excluding file_summaries)
+            if "data_analysis_result" in task_spec:
+                blueprint = {
+                    k: v
+                    for k, v in task_spec["data_analysis_result"].items()
+                    if k != "file_summaries"
+                }
+                task_info = json.dumps(blueprint, indent=2)
+                self.logger.info(
+                    "Extracted blueprint from task_spec for %s mode", mode
+                )
+            else:
+                task_info = json.dumps(task_spec, indent=2)
+            
+            # Check task description and load appropriate patch
+            task_description = task_spec.get('description', '').lower()
+            
+            if 'mask-wearing' in task_description:
+                self.logger.info("Loading mask adoption patch for code quality check")
+                try:
+                    # Get project root directory (3 levels up from agents/code_generation_odd/agent.py)
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "mask_adoption_patch.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        patch_content = f"\n\n{f.read()}"
+                    task_info += patch_content
+                except Exception as e:
+                    self.logger.error(f"Error loading mask_adoption_patch.txt: {e}")
+            
+            elif 'user rates' in task_description:
+                self.logger.info("Loading LLM calling patch for code quality check")
+                try:
+                    # Get project root directory (3 levels up from agents/code_generation_odd/agent.py)
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "llm_api_call_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        patch_content = f"\n\n{f.read()}"
+                    task_info += patch_content
+                except Exception as e:
+                    self.logger.error(f"Error loading llm_api_call_patch_prompt.txt: {e}")
+            
+            # Persona-specific patch for psychometric test simulators
+            if mode == "persona" and 'psychometric tests' in task_description:
+                self.logger.info("Loading persona patch for code quality check")
+                try:
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "persona_patch.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        patch_content = f"\n\n{f.read()}"
+                    task_info += patch_content
+                except Exception as e:
+                    self.logger.error(f"Error loading persona_patch.txt: {e}")
+        else:
+            # For non-odd/non-persona modes, use standard format
+            task_info = json.dumps(task_spec, indent=2)
         
         # Build prompt for code quality check
         prompt = f"""
@@ -279,7 +534,7 @@ class CodeGenerationAgent(BaseAgent):
         ```
         
         Task specification:
-        {json.dumps(task_spec, indent=2)}
+        {task_info}
         
         Model plan:
         {json.dumps(model_plan, indent=2)}
@@ -291,11 +546,11 @@ class CodeGenerationAgent(BaseAgent):
         
         1. SYNTAX ERRORS: Any syntax errors or code that might cause runtime errors
         2. PLACEHOLDERS: Placeholder functions or methods (containing only 'pass' without implementation)
-        3. MISSING IMPLEMENTATIONS: Required methods or functionality mentioned in the model plan but not implemented
-        4. INCONSISTENCIES: Inconsistencies between class/method names in the model plan and the implementation
+        3. MISSING IMPLEMENTATIONS: Required methods or functionality mentioned in the task specification or model plan or  but not implemented
+        4. INCONSISTENCIES: Inconsistencies between class/method names in the task specification or model plan and the implementation
         5. UNDEFINED REFERENCES: References to undefined variables, methods, or classes
         6. ERROR HANDLING: Missing or inadequate error handling, especially for file operations and data processing
-        7. COMPLETENESS: Check that all components from the model plan (entities, behaviors, interactions) are implemented
+        7. COMPLETENESS: Check that all components from the task specification or model plan (entities, behaviors, interactions) are implemented
         8. DOCUMENTATION: Missing or incomplete docstrings for classes and methods
         9. TYPE ANNOTATIONS: Missing or incorrect type annotations
         10. ALGORITHM EFFICIENCY: Inefficient algorithms or code patterns
@@ -322,8 +577,8 @@ class CodeGenerationAgent(BaseAgent):
         """
         
         # Call LLM to perform code quality check
-        llm_response = self._call_llm(prompt)
-        # llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
+        # Use low effort for analysis task (just identifying issues, not generating code)
+        llm_response = self._call_llm(prompt, reasoning={"effort": "low"})
         
         # Parse LLM response
         try:
@@ -557,7 +812,8 @@ class CodeGenerationAgent(BaseAgent):
         issues: List[Dict[str, Any]],
         fixed_log_references: str,
         task_spec: Dict[str, Any],
-        model_plan: Dict[str, Any]
+        model_plan: Dict[str, Any],
+        mode: str = "full"
     ) -> str:
         """
         Improve code based on issues found and fixed_log references.
@@ -568,6 +824,7 @@ class CodeGenerationAgent(BaseAgent):
             fixed_log_references: References to fixed_log entries
             task_spec: Task specification from the Task Understanding Agent
             model_plan: Model plan from the Model Planning Agent
+            mode: Workflow mode ("full", "odd", etc.)
             
         Returns:
             Improved code
@@ -576,6 +833,64 @@ class CodeGenerationAgent(BaseAgent):
         
         # Format issues for the prompt
         issues_text = json.dumps(issues, indent=2)
+        
+        # Prepare task_info based on mode
+        if mode in ("odd", "persona"):
+            # Extract blueprint from task_spec (excluding file_summaries)
+            if "data_analysis_result" in task_spec:
+                blueprint = {
+                    k: v
+                    for k, v in task_spec["data_analysis_result"].items()
+                    if k != "file_summaries"
+                }
+                task_info = json.dumps(blueprint, indent=2)
+                self.logger.info(
+                    "Extracted blueprint from task_spec for %s mode", mode
+                )
+            else:
+                task_info = json.dumps(task_spec, indent=2)
+            
+            # Check task description and load appropriate patch
+            task_description = task_spec.get('description', '').lower()
+            
+            if 'mask-wearing' in task_description:
+                self.logger.info("Loading mask adoption patch for code improvement")
+                try:
+                    # Get project root directory (3 levels up from agents/code_generation_odd/agent.py)
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "mask_adoption_patch.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        patch_content = f"\n\n{f.read()}"
+                    task_info += patch_content
+                except Exception as e:
+                    self.logger.error(f"Error loading mask_adoption_patch.txt: {e}")
+            
+            elif 'user rates' in task_description or 'human trait scores' in task_description:
+                self.logger.info("Loading LLM calling patch for code improvement")
+                try:
+                    # Get project root directory (3 levels up from agents/code_generation_odd/agent.py)
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "llm_api_call_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        patch_content = f"\n\n{f.read()}"
+                    task_info += patch_content
+                except Exception as e:
+                    self.logger.error(f"Error loading llm_api_call_patch_prompt.txt: {e}")
+            
+            # Persona-specific patch for psychometric test simulators
+            if mode == "persona" and 'psychometric tests' in task_description:
+                self.logger.info("Loading persona patch for code improvement")
+                try:
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "persona_patch.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        patch_content = f"\n\n{f.read()}"
+                    task_info += patch_content
+                except Exception as e:
+                    self.logger.error(f"Error loading persona_patch.txt: {e}")
+        else:
+            # For non-odd/non-persona modes, use standard format
+            task_info = json.dumps(task_spec, indent=2)
         
         # Build prompt for improving code
         prompt = f"""
@@ -592,7 +907,7 @@ class CodeGenerationAgent(BaseAgent):
         {fixed_log_references}
         
         Task specification:
-        {json.dumps(task_spec, indent=2)}
+        {task_info}
         
         Model plan:
         {json.dumps(model_plan, indent=2)}
@@ -607,8 +922,9 @@ class CodeGenerationAgent(BaseAgent):
         """
         
         # Call LLM to improve code
-        # llm_response = self._call_llm(prompt)
-        llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
+        # Use medium effort for code improvement - balance speed and quality
+        # Multiple iterations provide quality control
+        llm_response = self._call_llm(prompt, reasoning={"effort": "medium"})
         
         # Extract improved code
         improved_code = self._extract_code(llm_response)
@@ -646,8 +962,8 @@ class CodeGenerationAgent(BaseAgent):
         """
         
         # Call LLM to fix syntax
-        # llm_response = self._call_llm(prompt)
-        llm_response = self._call_llm(prompt, reasoning={"effort": "high"})
+        # Use low effort for syntax fixing (relatively simple task)
+        llm_response = self._call_llm(prompt, reasoning={"effort": "low"})
         
         # Extract fixed code
         fixed_code = self._extract_code(llm_response)
@@ -668,7 +984,8 @@ class CodeGenerationAgent(BaseAgent):
         feedback: Optional[Dict[str, Any]] = None,
         data_path: Optional[str] = None,
         previous_code: Optional[Dict[str, str]] = None,
-        mode: str = "full"
+        mode: str = "full",
+        playbook: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Build a prompt for the LLM to generate code.
@@ -761,6 +1078,7 @@ class CodeGenerationAgent(BaseAgent):
             # Data path string
             data_path_str = f"Data directory: {data_path}" if data_path else "No data path provided"
             
+            # todo: using blueprint_str (blueprint = {k: v for k, v in task_spec["data_analysis_result"].items() if k != "file_summaries"}) plus patch when composing prompt. should this synchronize with the self-loop prompt?
             # Fill in the full template
             prompt = prompt_template.format(
                 blue_print=blueprint_str,
@@ -775,16 +1093,28 @@ class CodeGenerationAgent(BaseAgent):
             task_description = task_spec.get('description', '').lower()
             if 'mask-wearing' in task_description:
                 self.logger.info("Adding mask adoption temporal holdout patch to prompt")
-                mask_adoption_patch = """
-
-Temporal Holdout (STRICT):
-- Split by unique days, not by transition steps.
-- Let days = sorted(unique days in train_data.csv). Use the first 80% days for training (days_train) and the remaining 20% days for validation (val_days).
-- All training matrices must be built ONLY from days_train.
-- The forward simulation should run exactly over val_days; metrics must compare against observed ground truth on val_days.
-- If val_days is empty, raise a clear error: "No validation days available after temporal split."
-"""
-                prompt += mask_adoption_patch
+                try:
+                    # Get project root directory (3 levels up from agents/code_generation_odd/agent.py)
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "mask_adoption_patch.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        mask_adoption_patch = f"\n\n{f.read()}"
+                    prompt += mask_adoption_patch
+                except Exception as e:
+                    self.logger.error(f"Error loading mask_adoption_patch.txt: {e}")
+                    # Continue without the patch if file cannot be loaded
+            elif 'user rates' in task_description:
+                self.logger.info("Adding use modelling llm calling patch to prompt")
+                try:
+                    # Get project root directory (3 levels up from agents/code_generation_odd/agent.py)
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "llm_api_call_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        llm_calling_patch = f"\n\n{f.read()}"
+                    prompt += llm_calling_patch
+                except Exception as e:
+                    self.logger.error(f"Error loading llm_api_call_patch_prompt.txt: {e}")
+                    # Continue without the patch if file cannot be loaded
         
         return prompt
     

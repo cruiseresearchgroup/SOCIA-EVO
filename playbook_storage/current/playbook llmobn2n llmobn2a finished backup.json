@@ -1,0 +1,1070 @@
+{
+  "playbook_metadata": {
+    "version": "v0.1",
+    "project_name": "",
+    "last_updated_time": "2026-01-04T13:53:19.295563",
+    "last_updated_iteration": "6",
+    "total_token_count": 2066,
+    "total_insights": 48,
+    "solved_count": 42,
+    "unsolved_count": 6,
+    "deleted_count": 0,
+    "finalized_at": "2026-01-04T13:55:31.671267"
+  },
+  "strategies": {},
+  "insights": {
+    "poi-recall-always-zero-set-vs-topk-bug": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 56,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "When a metric is used as a calibration signal, implement it exactly per definition; a subtly mis-specified denominator/truncation can collapse the signal (here: always near 0), making calibration chase the wrong objective.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "trajectory-string-format-mismatch-comma-vs-semicolon-and-missing-period": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 38,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Never let the declared format_spec diverge from emitted strings; keep a single canonical serializer and have parsers accept supersets for robustness.",
+        "metric_links": []
+      }
+    },
+    "evaluation-metrics-not-matching-blueprint-required-metric-set": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 44,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Calibration optimizes exactly what you measure; if your metric suite drifts from spec, you’ll tune the wrong behavior even if the simulator ‘looks good’ on internal metrics.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          }
+        ]
+      }
+    },
+    "transition-divergence-stuck-at-ln2-indicates-degenerate-transition-distribution": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 56,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When a divergence metric saturates at a constant across parameter sweeps, treat it as a taxonomy/support mismatch or a collapsed feature extractor; add overlap diagnostics and ensure identical representation for GT vs SIM.",
+        "metric_links": [
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "radius-of-gyration-not-computable-because-gt-distance-steps-zero": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 40,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If GT-derived trajectory stats (like step counts) are zero, debug parsing/joining before tuning the generator; otherwise all spatial metrics become meaningless.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "output-contract-mismatch-calibrated-parameters-key-names": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 39,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "When outputs are consumed by external evaluators, treat key names as API contracts; add backward-compatible aliases rather than renaming fields outright.",
+        "metric_links": []
+      }
+    },
+    "poi-recall-near-zero-personal-preference-model-too-sparse": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 54,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When the evaluation requires exact POI token matches, any purely “user-history-only” POI preference will collapse recall under distribution shift; always include global/popularity smoothing and candidate-set pruning.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "missing-radius-of-gyration-metric-not-implemented": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 36,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Don’t silently substitute evaluation metrics: implement blueprint metrics directly, and only add extras as explicitly non-contract diagnostics.",
+        "metric_links": []
+      }
+    },
+    "time-of-day-metric-uses-jsd-not-emd": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 41,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "For circular/ordered domains like time-of-day, prefer distance-aware metrics (EMD/Wasserstein) over divergence on coarse bins when the spec demands shift magnitude.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "category-metric-computes-supercategory-share-mae-not-jsd-over-fine-cats": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 37,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Match the metric family in the spec: MAE on shares and JSD capture different failures; using the wrong one can miscalibrate the shift parameters.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-model-underestimates-and-misaligns-distribution": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 63,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If you sample a target sequence length but later time-feasibility truncates the sequence, you must either enforce feasibility during length sampling or adjust gaps to honor the sampled length; otherwise stop-count metrics will be systematically biased.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.6
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "gt-coordinate-missingness-very-high-undermines-distance-metrics": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 43,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Distance-based metrics are only as good as the POI-token join; always implement robust normalization and log unmatched identifiers before trusting mobility-radius results.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "context-window-rule-violated-by-unbounded-backfill": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 45,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Context windows in OOD simulations must be time-bounded even in fallback paths; otherwise you silently change the conditioning regime and may inflate/deflate metrics unpredictably.",
+        "metric_links": []
+      }
+    },
+    "output-contract-mismatch-evaluates-test-split-but-names-as-validation": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 41,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "When output filenames are fixed by contract, make the evaluated split unambiguous in the JSON payload to prevent accidental ‘validation vs test’ misuse downstream.",
+        "metric_links": []
+      }
+    },
+    "blueprint-metric-mismatch-missing-required-eval-metrics": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 35,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Treat metric names as API: if the spec lists metrics, compute them explicitly with exact names and avoid burying them only in diagnostics.",
+        "metric_links": []
+      }
+    },
+    "poi-topk-recall-near-zero-due-to-unconditioned-poi-choice": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 47,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If the evaluation includes exact-POI overlap, POI sampling must be conditioned (category → POI) and should include a high-mass component on the user’s frequent POIs within that category.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-error-high-from-mean-matching-instead-of-distribution-fit": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 46,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "To match count MAE and count KL simultaneously, use a principled exponential tilt/temperature transform of the baseline PMF rather than shifting only the mean with arbitrary penalties.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "time-of-day-mismatch-from-30min-binning-and-no-within-day-conditioning": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 51,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Coarse start-time bins plus unconditioned gaps usually produce correct-looking averages but fail distributional metrics; add conditioning on stop index/transition to recover realistic temporal structure.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "category-mix-metric-not-jsd-and-uses-supercat-only": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 35,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "When a spec says “JSD”, using MAE instead can hide mode-collapse/mass-shift errors; match the divergence family required by the evaluation.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "distance-missingness-discrepancy-masks-spatial-metrics": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 40,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Spatial metrics are only meaningful when coordinate coverage is comparable; normalize tokens early and compute distance metrics on matched-coordinate subsets.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "no-online-context-window-features-beyond-last-poi": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 39,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "If a spec provides an online context window, use it to condition multiple parts of generation (counts, categories, POIs), not just the starting location.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "missing-fine-category-metrics-computed-as-supercategory": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 51,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "If the blueprint allows an optional aggregation (super-category), implement both and clearly report which one drives selection; otherwise you risk optimizing an easier proxy metric that hides failures.",
+        "metric_links": [
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-recall-low-due-to-no-personal-poi-memory-in-2021-context": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 44,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "A context window should influence more than the initial state; use it to bias the full choice set toward recently seen user-specific POIs to improve recall under regime shifts.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-error-high-missing-daylength-and-dwell-structure": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 45,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Stop count, gaps, and day time budget must be jointly consistent; sampling them independently and then clipping times tends to inflate count errors and distort temporal statistics.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "time-distribution-mismatch-from-coarse-within-bin-sampling-and-start-time-shift": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 49,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Avoid post-hoc rejection rules on learned temporal distributions; encode constraints directly into the fitted distribution or you will create distribution shifts that show up as TOD divergence.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "spatial-metric-degradation-from-high-gt-coordinate-missingness": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 41,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If a metric depends on external joins, missingness can dominate; measure and equalize join success across simulated and GT before trusting distribution distances.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "poi-choice-mixture-capped-too-high-limits-distance-signal": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 28,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Don’t silently change calibrated parameter bounds; calibration depends on the search space matching the spec.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "missing-fine-category-generation-model": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 55,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "If the evaluation target is at POI token granularity, generating only higher-level categories will often look good on aggregate mix metrics while failing identity/recall metrics; model the finest target level explicitly.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.65
+          },
+          {
+            "name": "transition_divergence",
+            "direction": "lower_is_better",
+            "weight": 0.35
+          }
+        ]
+      }
+    },
+    "context-window-includes-2021-ground-truth-peeking": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 54,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Any feature derived from the labeled/evaluation-period ground truth (even if temporally earlier) must be treated as privileged information unless the task explicitly provides it as observed input at inference time.",
+        "metric_links": []
+      }
+    },
+    "stop-count-mae-high-from-no-2021-calibrated-stopcount-shift-structure": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 59,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Matching only the mean of a discrete behavioral distribution is often insufficient under regime shift; add at least one parameter controlling dispersion/tail weight and validate the realized histogram after all feasibility constraints.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.75
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          }
+        ]
+      }
+    },
+    "poi-recall-low-from-overweighting-generic-popularity-and-repeats": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 37,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Recall@K for sets is hurt by within-day repetition; enforce diversity or diminishing returns when sampling discrete items for a fixed-length list.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "time-of-day-mismatch-from-single-global-shift-and-gap-sampling": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 43,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "Feasibility clamping after independent gap sampling often reshapes the time distribution; generate time structure in a constraint-aware way rather than fixing it post hoc.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "distance-metric-unstable-due-to-high-coordinate-missingness": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 42,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When a metric depends on optional metadata (coords), calibration becomes unreliable unless you control for missingness symmetry and log coverage/eligibility explicitly.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "calibration-search-too-small-for-6d-parameter-space": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 37,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "High-dimensional calibration with noisy objectives needs either many trials or structured/staged search; small random searches mostly measure noise.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.4
+          },
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "missing-radius-of-gyration-metric": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 41,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Do not swap evaluation metrics for convenient proxies: implement required metrics exactly (or emit both with clear names) to avoid optimizing the wrong objective.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "missing-true-blueprint-metrics-stopcount-mae-time-emd-category-jsd-poi-recallk": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 48,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Calibration objectives must match the spec’s metric definitions (not just “similar” statistics), otherwise optimization will produce good-looking numbers that don’t satisfy the actual task.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "category_share_mae",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          }
+        ]
+      }
+    },
+    "ood-context-window-backfill-violates-blueprint": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 38,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "OOD context windows need deterministic, spec-compliant backfill rules; arbitrary caps create silent distribution shifts and undermine personalization.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.45
+          },
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.25
+          },
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 0.15
+          },
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 0.15
+          }
+        ]
+      }
+    },
+    "poi-recall-extremely-low-from-unconditioned-poi-choice-and-huge-candidate-space": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 44,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "For POI-level recall tasks, controlling candidate set size is as important as weighting—high-cardinality categories require pruning/structuring to avoid probability dilution.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "stop-count-error-high-from-weak-2021-shift-model-and-limited-stopcount-support": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 39,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If you calibrate a multiplier on a discrete outcome, ensure the base distribution has enough support; otherwise optimization can’t express the needed shift.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.7
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.3
+          }
+        ]
+      }
+    },
+    "evaluation-recall-uses-prefix-not-day-set": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 36,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Metric definitions shape what the simulator learns; prefix-based recall silently encourages ordering hacks rather than true day-level overlap.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "missing-2021-validation-calibration-as-separate-output": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 38,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Strict split hygiene includes clear artifact naming—mislabeling validation vs test can invalidate the experimental protocol even if the code is correct.",
+        "metric_links": []
+      }
+    },
+    "runtime-too-slow-from-full-rollout-per-iteration": {
+      "meta_info": {
+        "status": "solved",
+        "token_count": 39,
+        "usage_count": 1,
+        "unusage_count": 0,
+        "success_attribution": 1,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "When calibration is black-box, reduce per-trial cost with deterministic subsampling/Successive Halving; better exploration often beats minor model tweaks.",
+        "metric_links": []
+      }
+    },
+    "stopcount-mae-high-stopcount-model-misspec": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 49,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "If per-day MAE is high but distribution-level KL is low, the generator is matching marginals but missing conditional structure; add conditioning/dispersion controls rather than only mean scaling.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.8
+          },
+          {
+            "name": "stop_count_kl",
+            "direction": "lower_is_better",
+            "weight": 0.2
+          }
+        ]
+      }
+    },
+    "poi-recall-low-overly-diffuse-poi-choice": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 42,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "EVAL_SIGNAL",
+        "key_insight": "POI recall is dominated by category correctness and candidate-set sharpness; fix the first-stop category consistency and shrink candidate pools before tuning weights.",
+        "metric_links": [
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "time-of-day-shift-uses-wrong-bin-resolution-and-metric-alias": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 34,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "Never hide unit conversions behind legacy metric names; calibration will optimize the wrong scale and comparisons become meaningless.",
+        "metric_links": [
+          {
+            "name": "tod_jsd_avg",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "trip-distance-metric-miswired-to-radius-of-gyration": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 33,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "Metric-key compatibility hacks must be audited with a unit test that asserts each output key equals the intended computed quantity.",
+        "metric_links": [
+          {
+            "name": "trip_distance_wasserstein",
+            "direction": "lower_is_better",
+            "weight": 1.0
+          }
+        ]
+      }
+    },
+    "ood-context-window-definition-deviates-from-calendar-7day": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 44,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "DESIGN_MISMATCH",
+        "key_insight": "OOD context windows should be defined in calendar time first; only then backfill to handle missingness—otherwise you inadvertently condition on arbitrary long-history slices.",
+        "metric_links": [
+          {
+            "name": "stop_count_abs_mean_error",
+            "direction": "lower_is_better",
+            "weight": 0.5
+          },
+          {
+            "name": "topk_poi_recall",
+            "direction": "higher_is_better",
+            "weight": 0.5
+          }
+        ]
+      }
+    },
+    "main-executes-on-import-causing-integration-risk": {
+      "meta_info": {
+        "status": "unsolved",
+        "token_count": 30,
+        "usage_count": 0,
+        "unusage_count": 0,
+        "success_attribution": 0,
+        "failure_attribution": 0
+      },
+      "reflection": {
+        "issue_type": "CODE_BUG",
+        "key_insight": "Always guard side-effectful entrypoints; evaluation systems often import modules and expect zero execution on import.",
+        "metric_links": []
+      }
+    }
+  }
+}

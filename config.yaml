@@ -9,7 +9,7 @@ llm:
 # Available LLM providers configuration
 llm_providers:
   openai:
-    model: "gpt-5"  # options: gpt-4.1, gpt-4o, gpt-4-turbo, gpt-3.5-turbo, gpt-4.1-2025-04-14, etc.
+    model: "gpt-5.2"  # options: gpt-4.1, gpt-4o, gpt-4-turbo, gpt-3.5-turbo, gpt-4.1-2025-04-14, etc.
     temperature: 0.7
     use_responses_api: true
     max_output_tokens: 10000
@@ -42,7 +42,12 @@ agents:
     enabled: true
     prompt_template: "templates/task_understanding_prompt.txt"
     output_format: "json"
-  
+
+  task_understanding_odd:
+    enabled: true
+    prompt_template: "templates/task_understanding_blueprint_consolidated_prompt.txt"
+    output_format: "json"
+
   data_analysis:
     enabled: true
     prompt_template: "templates/data_analysis_prompt.txt"
@@ -51,9 +56,15 @@ agents:
 
   data_analysis_odd:
     enabled: true
-    prompt_template: "templates/data_analysis_odd_prompt.txt"
+    prompt_template: "templates/data_analysis_odd_prompt_personality.txt"
     output_format: "json"
-    supported_data_types: ["csv", "json", "geojson", "shapefile"]
+    supported_data_types: ["csv", "json", "geojson", "shapefile", "yaml"]
+
+  data_analysis_ace:
+    enabled: true
+    prompt_template: "templates/data_analysis_ace_prompt.txt"
+    output_format: "json"
+    supported_data_types: [ "csv", "json", "geojson", "shapefile", "yaml" ]
   
   model_planning:
     enabled: true
@@ -72,6 +83,12 @@ agents:
     prompt_template: "templates/code_generation_odd_prompt.txt"
     output_format: "python"
     code_style: "pep8"
+
+  code_generation_ace:
+    enabled: true
+    prompt_template: "templates/code_generation_ace_prompt.txt"
+    output_format: "python"
+    code_style: "pep8"
     
   code_verification:
     enabled: true
@@ -84,8 +101,13 @@ agents:
     enabled: true
     prompt_template: "templates/simulation_execution_prompt.txt"
     output_format: "json"
+    
+  simulation_execution_ace:
+    enabled: true
+    prompt_template: "templates/simulation_execution_prompt.txt"
+    output_format: "json"
     sandbox: "local"  # options: local, docker, cloud
-    timeout: 300  # seconds
+    timeout: 3600  # seconds
     
   result_evaluation:
     enabled: true
@@ -97,8 +119,19 @@ agents:
     enabled: true
     prompt_template: "templates/feedback_generation_prompt.txt"
     output_format: "json"
+  
+  feedback_generation_ace:
+    enabled: true
+    prompt_template: "templates/feedback_generation_ace_prompt.txt"
+    output_format: "json"
     
   iteration_control:
+    enabled: true
+    prompt_template: "templates/iteration_control_prompt.txt"
+    output_format: "json"
+    convergence_threshold: 0.05
+
+  iteration_control_ace:
     enabled: true
     prompt_template: "templates/iteration_control_prompt.txt"
     output_format: "json"

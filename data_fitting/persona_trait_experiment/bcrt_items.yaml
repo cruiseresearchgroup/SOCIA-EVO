@@ -1,0 +1,15 @@
+id: bcrt
+name: Bespoke Cognitive Reflection Test
+
+items:
+  - id: bcrt_q1
+    question: "A man buys a cow for $800, sells it for $1000, buys it back for $1100, and sells it again for $1300. How much profit?"
+
+  - id: bcrt_q2
+    question: "A snail climbs a 10-foot wall, going up 3 feet each day and slipping down 2 feet each night. How many days to reach the top?"
+
+  - id: bcrt_q3
+    question: "A rope ladder hangs from a ship with rungs 20 cm apart. The tide rises 15 cm/hour. How long until three rungs are underwater?"
+
+  - id: bcrt_q4
+    question: "Jack is looking at Anne, and Anne is looking at George. Jack is married, George is not. Is a married person looking at an unmarried person?"
