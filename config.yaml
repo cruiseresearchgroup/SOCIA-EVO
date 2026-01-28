@@ -90,6 +90,12 @@ agents:
     output_format: "python"
     code_style: "pep8"
     
+  code_generation_alpha:
+    enabled: true
+    prompt_template: "templates/code_generation_ace_prompt.txt"
+    output_format: "python"
+    code_style: "pep8"
+    
   code_verification:
     enabled: true
     prompt_template: "templates/code_verification_prompt.txt"
@@ -103,6 +109,13 @@ agents:
     output_format: "json"
     
   simulation_execution_ace:
+    enabled: true
+    prompt_template: "templates/simulation_execution_prompt.txt"
+    output_format: "json"
+    sandbox: "local"  # options: local, docker, cloud
+    timeout: 3600  # seconds
+  
+  simulation_execution_alpha:
     enabled: true
     prompt_template: "templates/simulation_execution_prompt.txt"
     output_format: "json"
@@ -123,6 +136,11 @@ agents:
   feedback_generation_ace:
     enabled: true
     prompt_template: "templates/feedback_generation_ace_prompt.txt"
+    output_format: "json"
+  
+  feedback_generation_alpha:
+    enabled: true
+    prompt_template: "templates/feedback_generation_alpha_prompt.txt"
     output_format: "json"
     
   iteration_control:

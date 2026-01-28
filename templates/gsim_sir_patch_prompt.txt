@@ -1,0 +1,40 @@
+Objective:
+Generate discrete-time SIR trajectories and calibrate simulator parameters so simulated trajectories match observed data. Use Simulation-Based Inference (SBI) to infer parameters from a single observed trajectory, then evaluate on full train/val/test sets.
+
+Model / Simulator:
+Discrete-time stochastic SIR:
+State update with conservation: S_{{t+1}} = S_t - new_inf, I_{{t+1}} = I_t + new_inf - new_rec, R_{{t+1}} = R_t + new_rec; adjust to keep S+I+R=N, nonnegative.
+
+SBI Calibration Procedure:
+1) Observation construction (single-trajectory):
+Take train_states[0] only (trajectory_id=0) as the sole observation.
+Flatten the full trajectory (61×3) into a 1×183 vector: [S0, I0, R0, S1, I1, R1, …, S60, I60, R60] = x_o.
+2) Simulated pairs (θ, x) for training NPE:
+Sample parameters θ from the BoxUniform prior.
+For each θ, set Model(θ), start from the initial state of train_states[0], roll out T=60 steps, flatten the simulated trajectory to x.
+Collect (θ, x) pairs.
+3) Train posterior estimator:
+Use NPE on collected (θ, x) to learn p(θ | x).
+4) Posterior inference:
+Condition on the real observation x_o; sample θ from p(θ | x_o).
+Take the posterior mean as optimized_parameters.
+
+Evaluation:
+Using optimized_parameters, evaluate on all trajectories:
+Training set: compute MSE (overall) over all time steps and compartments.
+Validation set: compute MSE (overall) and per-dimension MSE (S, I, R).
+Test set: compute MSE (overall).
+
+Initialization / Horizon:
+Per trajectory: initial state = time_step 0 row; horizon T derived from data (max time_step, typically 60).
+Population N fixed per trajectory from its initial state.
+
+Outputs:
+1) A JSON file `results.json` with top-level keys:
+   - "optimized_parameters": a JSON object with the inferred SIR parameters, e.g. {"beta": <float>, "gamma": <float>}.
+   - "calibration_artifacts": a JSON object with metadata about the SBI run (e.g. observation_trajectory_id, observation_T, x_o_shape, num_simulations, num_posterior_samples, posterior_samples_mean).
+   - "metrics": a JSON object with scalar calibration and evaluation metrics.
+
+2) A CSV file `val_predicted_mean_trajectories.csv` containing the mean predicted validation trajectories, with header:
+   trajectory_id,time_step,S_pred,I_pred,R_pred
+   and one row per (trajectory_id, time_step) giving the predicted S, I, R values.

@@ -277,7 +277,8 @@ class SimulationExecutionAgent(BaseAgent):
                 data_path,
                 output_file=output_file,
                 project_root=project_root,
-                openai_api_key=openai_api_key
+                openai_api_key=openai_api_key,
+                task_spec=task_spec
             )
             if execution_result:
                 return execution_result
@@ -288,57 +289,57 @@ class SimulationExecutionAgent(BaseAgent):
                 if execution_result:
                     return execution_result
         
-        # Fall back to LLM simulation if execution fails or is unavailable
-        self.logger.info("Using LLM to simulate execution")
-        
-        # Build prompt for LLM simulation, include file references if available
-        prompt = self._build_prompt(
-            task_spec=task_spec,
-            code=code,
-            data_path=data_path
-        )
-        
-        # Call LLM to simulate execution
-        llm_response = self._call_llm(prompt)
-        
-        # Parse the response
-        execution_result = self._parse_llm_response(llm_response)
-        
-        # If LLM response parsing failed, create a basic result
-        if isinstance(execution_result, str):
-            execution_result = {
-                "execution_status": "success",
-                "runtime_errors": [],
-                "performance_metrics": {
-                    "execution_time": 1.0,
-                    "memory_usage": 100
-                },
-                "simulation_metrics": {
-                    "total_entities": 100,
-                    "average_activity": 0.5
-                },
-                "time_series_data": [
-                    {
-                        "time_step": 0,
-                        "metrics": {
-                            "total_entities": 100,
-                            "average_activity": 0.5
+            # Fall back to LLM simulation if execution fails or is unavailable
+            self.logger.info("Using LLM to simulate execution")
+
+            # Build prompt for LLM simulation, include file references if available
+            prompt = self._build_prompt(
+                task_spec=task_spec,
+                code=code,
+                data_path=data_path
+            )
+
+            # Call LLM to simulate execution
+            llm_response = self._call_llm(prompt)
+
+            # Parse the response
+            execution_result = self._parse_llm_response(llm_response)
+
+            # If LLM response parsing failed, create a basic result
+            if isinstance(execution_result, str):
+                execution_result = {
+                    "execution_status": "success",
+                    "runtime_errors": [],
+                    "performance_metrics": {
+                        "execution_time": 1.0,
+                        "memory_usage": 100
+                    },
+                    "simulation_metrics": {
+                        "total_entities": 100,
+                        "average_activity": 0.5
+                    },
+                    "time_series_data": [
+                        {
+                            "time_step": 0,
+                            "metrics": {
+                                "total_entities": 100,
+                                "average_activity": 0.5
+                            }
                         }
-                    }
-                ],
-                "visualizations": [],
-                "summary": "Simulated execution of the code (LLM-based)"
-            }
-        
-        # Log LLM simulation results
-        self.logger.info(f"LLM simulation completed with status: {execution_result.get('execution_status', 'unknown')}")
-        self.logger.info(f"Simulation summary: {execution_result.get('summary', 'No summary available')}")
-        if execution_result.get('execution_status') == 'failed' and execution_result.get('runtime_errors'):
-            self.logger.warning(f"Simulated runtime errors: {execution_result.get('runtime_errors')}")
-        self.logger.debug(f"Detailed simulation result: {json.dumps(execution_result, indent=2)}")
-        
-        self.logger.info("Simulation execution completed")
-        return execution_result
+                    ],
+                    "visualizations": [],
+                    "summary": "Simulated execution of the code (LLM-based)"
+                }
+
+            # Log LLM simulation results
+            self.logger.info(f"LLM simulation completed with status: {execution_result.get('execution_status', 'unknown')}")
+            self.logger.info(f"Simulation summary: {execution_result.get('summary', 'No summary available')}")
+            if execution_result.get('execution_status') == 'failed' and execution_result.get('runtime_errors'):
+                self.logger.warning(f"Simulated runtime errors: {execution_result.get('runtime_errors')}")
+            self.logger.debug(f"Detailed simulation result: {json.dumps(execution_result, indent=2)}")
+
+            self.logger.info("Simulation execution completed")
+            return execution_result
     
     def _execute_code_with_subprocess(
         self,
@@ -346,7 +347,8 @@ class SimulationExecutionAgent(BaseAgent):
         data_path: Optional[str] = None,
         output_file: Optional[str] = None,
         project_root: Optional[str] = None,
-        openai_api_key: Optional[str] = None
+        openai_api_key: Optional[str] = None,
+        task_spec: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Execute Python script using subprocess for lite/ace/alpha mode.
@@ -447,6 +449,22 @@ class SimulationExecutionAgent(BaseAgent):
                     self.logger.info(f"Output path is a directory, reading multiple JSON files from: {output_file}")
                     simulation_output = {}
                     
+                    # Check if this is a COVID SIR task, Three-disease Hospital task, or Beer Game (SUPPLY) task (special handling for results.json)
+                    is_covid_sir = False
+                    is_hospital = False
+                    is_supply = False
+                    if task_spec:
+                        task_description = task_spec.get("description", "").lower()
+                        is_covid_sir = "covid sir" in task_description
+                        is_hospital = "three-disease hospital" in task_description
+                        is_supply = "beer game (supply)" in task_description
+                        if is_covid_sir:
+                            self.logger.info("COVID SIR task detected: will read results.json and apply special mapping")
+                        if is_hospital:
+                            self.logger.info("Three-disease Hospital task detected: will read results.json and apply special mapping")
+                        if is_supply:
+                            self.logger.info("Beer Game (SUPPLY) task detected: will read results.json and apply special mapping")
+                    
                     # Try to read each expected file (skip large files like simulated_trajectories)
                     expected_files = {
                         "calibrated_parameters": "calibrated_parameters.json",
@@ -454,6 +472,10 @@ class SimulationExecutionAgent(BaseAgent):
                         "evaluation_results_on_validation": "evaluation_results_on_validation.json",
                         # Skip simulated_trajectories_validation.json as it's large and not needed for metrics
                     }
+                    
+                    # For COVID SIR tasks, Hospital tasks, or SUPPLY tasks, also read results.json
+                    if is_covid_sir or is_hospital or is_supply:
+                        expected_files["results"] = "results.json"
                     
                     files_found = 0
                     for key, filename in expected_files.items():
@@ -473,8 +495,89 @@ class SimulationExecutionAgent(BaseAgent):
                         # Transform directory format to match single-file format structure
                         transformed_output = {}
                         
-                        # Transform calibrated_parameters
-                        if "calibrated_parameters" in simulation_output:
+                        # Special handling for COVID SIR tasks: map results.json fields
+                        if is_covid_sir and "results" in simulation_output:
+                            results_data = simulation_output["results"]
+                            self.logger.info("Applying COVID SIR mapping from results.json")
+                            
+                            # Map metrics -> simulation_metrics
+                            if "metrics" in results_data:
+                                execution_result["simulation_metrics"] = results_data["metrics"]
+                                self.logger.debug(f"Mapped metrics to simulation_metrics: {len(results_data['metrics'])} fields")
+                            
+                            # Map optimized_parameters -> calibrated_parameters
+                            if "optimized_parameters" in results_data:
+                                execution_result["calibrated_parameters"] = results_data["optimized_parameters"]
+                                transformed_output["calibrated_parameters"] = results_data["optimized_parameters"]
+                                self.logger.debug(f"Mapped optimized_parameters to calibrated_parameters")
+                            
+                            # Map calibration_artifacts -> calibration_artifacts (preserve as-is)
+                            if "calibration_artifacts" in results_data:
+                                execution_result["calibration_artifacts"] = results_data["calibration_artifacts"]
+                                transformed_output["calibration_artifacts"] = results_data["calibration_artifacts"]
+                                self.logger.debug(f"Mapped calibration_artifacts")
+                            
+                            # Also preserve the full results.json in simulation_output for reference
+                            transformed_output["results"] = results_data
+                        
+                        # Special handling for Three-disease Hospital tasks: map results.json fields
+                        if is_hospital and "results" in simulation_output:
+                            results_data = simulation_output["results"]
+                            self.logger.info("Applying Three-disease Hospital mapping from results.json")
+                            
+                            # Map metrics -> simulation_metrics
+                            if "metrics" in results_data:
+                                execution_result["simulation_metrics"] = results_data["metrics"]
+                                self.logger.debug(f"Mapped metrics to simulation_metrics: {len(results_data['metrics'])} fields")
+                            
+                            # Map optimized_parameters -> calibrated_parameters
+                            if "optimized_parameters" in results_data:
+                                execution_result["calibrated_parameters"] = results_data["optimized_parameters"]
+                                transformed_output["calibrated_parameters"] = results_data["optimized_parameters"]
+                                self.logger.debug(f"Mapped optimized_parameters to calibrated_parameters")
+                            
+                            # Map calibration_artifacts -> calibration_artifacts (exclude loss_history)
+                            if "calibration_artifacts" in results_data:
+                                calib_artifacts = results_data["calibration_artifacts"]
+                                # Create a copy excluding loss_history
+                                filtered_calib_artifacts = {
+                                    k: v for k, v in calib_artifacts.items() 
+                                    if k != "loss_history"
+                                }
+                                execution_result["calibration_artifacts"] = filtered_calib_artifacts
+                                transformed_output["calibration_artifacts"] = filtered_calib_artifacts
+                                self.logger.debug(f"Mapped calibration_artifacts (excluding loss_history): {len(filtered_calib_artifacts)} fields")
+                            
+                            # Also preserve the full results.json in simulation_output for reference
+                            transformed_output["results"] = results_data
+                        
+                        # Special handling for Beer Game (SUPPLY) tasks: map results.json fields
+                        if is_supply and "results" in simulation_output:
+                            results_data = simulation_output["results"]
+                            self.logger.info("Applying Beer Game (SUPPLY) mapping from results.json")
+                            
+                            # Map metrics -> simulation_metrics
+                            if "metrics" in results_data:
+                                execution_result["simulation_metrics"] = results_data["metrics"]
+                                self.logger.debug(f"Mapped metrics to simulation_metrics: {len(results_data['metrics'])} fields")
+                            
+                            # Map optimized_parameters -> calibrated_parameters
+                            if "optimized_parameters" in results_data:
+                                execution_result["calibrated_parameters"] = results_data["optimized_parameters"]
+                                transformed_output["calibrated_parameters"] = results_data["optimized_parameters"]
+                                self.logger.debug(f"Mapped optimized_parameters to calibrated_parameters")
+                            
+                            # Map calibration_artifacts -> calibration_artifacts (preserve as-is)
+                            if "calibration_artifacts" in results_data:
+                                execution_result["calibration_artifacts"] = results_data["calibration_artifacts"]
+                                transformed_output["calibration_artifacts"] = results_data["calibration_artifacts"]
+                                self.logger.debug(f"Mapped calibration_artifacts")
+                            
+                            # Also preserve the full results.json in simulation_output for reference
+                            transformed_output["results"] = results_data
+                        
+                        # Transform calibrated_parameters (only if not already set by COVID SIR mapping)
+                        if "calibrated_parameters" not in execution_result and "calibrated_parameters" in simulation_output:
                             calib_params = simulation_output["calibrated_parameters"]
                             # Convert from directory format to single-file format
                             transformed_calib = {

@@ -1,0 +1,112 @@
+Objective:
+Generate discrete-time hospital trajectories for a Three-disease Hospital Environment and calibrate simulator parameters so simulated trajectories match observed data. Use Simulation-Based Inference (SBI) with Neural Posterior Estimation (NPE) to infer parameters from a single observed trajectory (train trajectory_id=0), then evaluate on full train/val/test sets.
+
+Model / Simulator:
+Discrete-time stochastic hospital environment with ICU and Standard beds, and patients from 3 disease types
+{0,1,2}.
+
+State at day t is a dictionary:
+"day": int
+"icu_occupancy": int
+"standard_occupancy": int
+"patients": list of dicts, each with:
+   - "disease_id" ∈ {0,1,2}
+   - "bed_type" ∈ {"ICU","Standard"}
+   - "los_remaining": int
+   - "is_alive": bool
+   - "day_in_hospital": int
+
+Transition dynamics (no external action):
+1. New patients arrive (stochastic arrivals, potentially disease-dependent).
+2. Allocate each new arrival to ICU or Standard subject to capacity and rules (can be disease-dependent).
+3. If no suitable bed is available, patient is not admitted.
+4. For existing admitted patients:
+   - decrement los_remaining
+   - increment day_in_hospital
+   - discharge when los_remaining <= 0
+   - optionally apply mortality (if you model it) by setting is_alive=False (but keep representation consistent).
+
+Hard invariants / consistency:
+ - ICU/Standard occupancy must be consistent with the patient list (recommended: count alive patients per bed_type).
+ - Must enforce bed capacity constraints.
+ - day increments by 1 per step (and should align with dataset’s day/time_step progression).
+ - Episode length typically 60 time steps (horizon derived from data max time_step, usually 60 → 61 states).
+
+SBI Calibration Procedure:
+1) Observation construction (single-trajectory):
+Use train_states[0] only (trajectory_id=0) as the sole observation.
+Construct observation using HOSP-specific trajectories_to_numpy:
+For each time step t, encode state into a 7-D summary:
+ - day
+ - icu_occupancy
+ - standard_occupancy
+ - d0_alive: count of patients with is_alive==True and disease_id==0
+ - d1_alive: count of patients with is_alive==True and disease_id==1
+ - d2_alive: count of patients with is_alive==True and disease_id==2
+ - total_alive = d0_alive + d1_alive + d2_alive
+This gives: observed_trajectory_np = trajectories_to_numpy(train_states[0]) with shape (T+1, 7)
+Flatten to: x_o = observed_trajectory_np.reshape(1, -1) with shape *(1, (T+1)7)
+
+2) Simulated pairs (θ, x) for training NPE:
+Sample parameters θ from BoxUniform prior constructed from: Model().get_parameters_uniform_prior_min_max()
+
+For each sampled θ:
+ - instantiate model and set_parameters(theta)
+ - rollout starting from train_states[0][0] (the initial state of the observation trajectory)
+ - rollout for horizon T (where T = len(train_states[0]) - 1)
+ - get predicted trajectory and convert to the same 7-D representation via trajectories_to_numpy
+ - flatten to x with shape (1, (T+1)*7)
+Collect training pairs (θ,x).
+
+3) Train posterior estimator (NPE)
+Train NPE to learn p(θ | x) using collected (θ,x) pairs.
+
+4) Posterior inference:
+Condition on the real observation x_o; sample θ* from p(θ | x_o).
+use posterior mean as: optimized_parameters = mean(theta_samples)
+
+Evaluation:
+Using optimized_parameters, evaluate on all trajectories:
+Train set: compute overall losses over all time steps and all 7 dimensions
+Validation set: compute overall losses and per-dimension losses over 7 dimensions
+Test set: compute overall losses
+
+Initialization / Horizon:
+Per trajectory: initial state = time_step 0 row; horizon T derived from data (max time_step, typically 60).
+Population N fixed per trajectory from its initial state.
+
+### UNIFIED OUTPUT CONTRACT (MUST FOLLOW)
+
+**CLI**
+
+* The program MUST accept `--output_dir <path>`.
+* Create the directory if missing. Write ALL outputs under it.
+
+Outputs (STRICT CONTRACT — MUST FOLLOW EXACTLY)
+1. Write results.json to the `--output_dir <path>` directory (exact filename: results.json).
+ - Must contain exactly these top-level keys:
+    - "optimized_parameters"
+    - "calibration_artifacts"
+    - "metrics"
+
+2. optimized_parameters schema
+ - JSON object mapping parameter_name -> float.
+ - The keys must match the simulator’s parameterization exactly (e.g., "icu_capacity", "standard_capacity", "arrival_lambda_d0", …).
+ - If you internally store parameters as a vector θ, you must export a named dict in a deterministic order.
+
+3. calibration_artifacts schema: Must be a JSON object containing for instance:
+
+4. metrics schema
+ - Must be a JSON object containing at least:
+    - "train_loss": float (overall MSE over ALL train trajectories, all timesteps, all 7 dims)
+    - "val_loss": float (overall MSE over ALL val trajectories, all timesteps, all 7 dims)
+    - "test_loss": float (overall MSE over ALL test trajectories, all timesteps, all 7 dims)
+    - "val_loss_per_dim": object with exactly 7 keys:
+       - "day", "icu_occupancy", "standard_occupancy", "d0_alive", "d1_alive", "d2_alive", "total_alive"
+       - each value is float
+5. Write validation prediction CSV
+ - Write val_predicted_mean_trajectories.csv (exact filename) with the mean predicted validation trajectory per trajectory_id and time_step.
+ - Required columns (at minimum): trajectory_id, time_step, day, icu_occupancy, standard_occupancy, d0_alive, d1_alive, d2_alive, total_alive.
+ - If you run K stochastic rollouts per trajectory, store the mean across rollouts; if K=1, just store that single rollout.
+
+

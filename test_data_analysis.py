@@ -55,7 +55,7 @@ def parse_arguments():
     parser.add_argument('--output', type=str, default='./output', help='Path to output directory')
     parser.add_argument('--config', type=str, default='./config.yaml', help='Path to configuration file')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    parser.add_argument('--mode', type=str, default='persona', choices=['lite', 'medium', 'persona', 'blueprint', 'odd', 'ace'], help='Workflow mode')
+    parser.add_argument('--mode', type=str, default='persona', choices=['lite', 'medium', 'persona', 'blueprint', 'odd', 'ace', 'alpha'], help='Workflow mode')
     parser.add_argument('--selfloop', type=int, default=3, help='Number of self-checking loop attempts for code generation')
     parser.add_argument('--persisted-data-analysis-file', type=str, help='Path to persisted data analysis file (task_spec.json) to skip data analysis phase')
     parser.add_argument('--persisted-code-file', type=str, help='Path to persisted code file (simulation_code_iter_N.py) to skip data analysis and initial code generation')
@@ -100,12 +100,15 @@ def setup_container(config_path: str) -> AgentContainer:
         "agents.data_analysis_ace.agent",
         "agents.code_generation_odd.agent",
         "agents.code_generation_ace.agent",
+        "agents.code_generation_alpha.agent",
         "agents.model_planning.agent",
         "agents.code_verification.agent",
         "agents.simulation_execution.agent",
+        "agents.simulation_execution_alpha.agent",
         "agents.result_evaluation.agent",
         "agents.feedback_generation.agent",
         "agents.feedback_generation_odd.agent",
+        "agents.feedback_generation_alpha.agent",
         "agents.iteration_control.agent",
         "agents.iteration_control_ace.agent",
         "agents.base_agent",
@@ -909,7 +912,7 @@ def run_data_analysis_test(
         # Playbook is shared across all tasks, stored in project root /playbook_storage
         playbook = None
         playbook_manager = None
-        if getattr(args, "mode", None) in ["odd", "ace"]:
+        if getattr(args, "mode", None) in ["odd", "ace", "alpha"]:
             # Use default storage root (project_root/playbook_storage)
             playbook_manager = PlaybookManager()
             playbook = playbook_manager.playbook
@@ -922,6 +925,20 @@ def run_data_analysis_test(
             code_generation_agent = agent_container.code_generation_ace_agent()
             simulation_execution_agent = agent_container.simulation_execution_ace_agent()
             feedback_generation_agent = agent_container.feedback_generation_ace_agent()
+            iteration_control_agent = agent_container.iteration_control_ace_agent()
+        elif args.mode == "alpha":
+            data_analysis_agent = agent_container.data_analysis_ace_agent()
+            # For alpha mode, override the prompt template to use data_analysis_alpha_prompt.txt
+            data_analysis_agent.config["prompt_template"] = "templates/data_analysis_alpha_prompt.txt"
+            # Reload the prompt template
+            data_analysis_agent.prompt_template = data_analysis_agent._load_prompt_template()
+            logger.info("Alpha mode: Using data_analysis_alpha_prompt.txt for data_analysis_ace_agent")
+            code_generation_agent = agent_container.code_generation_alpha_agent()
+            logger.info("Alpha mode: Using code_generation_alpha_agent for code generation")
+            simulation_execution_agent = agent_container.simulation_execution_alpha_agent()
+            logger.info("Alpha mode: Using simulation_execution_alpha_agent for execution")
+            feedback_generation_agent = agent_container.feedback_generation_alpha_agent()
+            logger.info("Alpha mode: Using feedback_generation_alpha_agent for feedback generation")
             iteration_control_agent = agent_container.iteration_control_ace_agent()
         else:
             # Default to odd agents for odd mode and other modes
@@ -1031,6 +1048,15 @@ def run_data_analysis_test(
                     "iteration": persisted_iteration
                 }
             }
+            
+            # Alpha mode: generate simulator_description for persisted code (once per iteration)
+            if args.mode == "alpha":
+                try:
+                    sim_desc = agents["code_generation"]._generate_simulator_description(persisted_code, task_spec)
+                    state["generated_code"]["simulator_description"] = sim_desc
+                    logger.info("Alpha mode: simulator_description generated for persisted code")
+                except Exception as e:
+                    logger.warning(f"Alpha mode: failed to generate simulator_description for persisted code: {e}")
             
             # Store in code_memory at the correct iteration number
             code_memory[persisted_iteration] = {f"simulation_code_iter_{persisted_iteration}.py": persisted_code}
@@ -1161,9 +1187,9 @@ def run_data_analysis_test(
             logger.info(f"  - Calibratable parameters: {len(data_analysis_result.get('calibratable_parameters', []))}")
         
         # ==================================================
-        # BLUEPRINT FEEDBACK AFTER DATA ANALYSIS (ACE mode only)
+        # BLUEPRINT FEEDBACK AFTER DATA ANALYSIS (ACE/ALPHA mode only)
         # ==================================================
-        if args.mode == "ace":
+        if args.mode in ["ace", "alpha"]:
             logger.info("=" * 50)
             logger.info("BLUEPRINT FEEDBACK AFTER DATA ANALYSIS (ACE mode)")
             logger.info("=" * 50)
@@ -1209,6 +1235,65 @@ def run_data_analysis_test(
         # MAIN ITERATION LOOP (Lite-style workflow)
         # ==================================================
         
+        # Initialize best_simulator_info and simulation_info_history for alpha mode (track best code across iterations)
+        best_simulator_info = None
+        simulation_info_history = []
+        if args.mode == "alpha":
+            logger.info("Alpha mode: Initializing best_simulator_info tracker and simulation_info_history")
+            
+            # Try to load simulation_info_history from previous run
+            simulation_info_history_path = os.path.join(args.output, "simulation_info_history.json")
+            if os.path.exists(simulation_info_history_path):
+                try:
+                    with open(simulation_info_history_path, 'r', encoding='utf-8') as f:
+                        simulation_info_history = json.load(f)
+                    logger.info(f"Alpha mode: Loaded simulation_info_history from {simulation_info_history_path} ({len(simulation_info_history)} iterations)")
+                    
+                    # Restore best_simulator_info from history if available
+                    if simulation_info_history:
+                        # Find the iteration with minimum val_loss (filter out None and invalid values)
+                        valid_history = []
+                        for x in simulation_info_history:
+                            val_loss = x.get("val_loss")
+                            # Check if val_loss is a valid number (not None, not inf, not nan)
+                            if val_loss is not None and isinstance(val_loss, (int, float)):
+                                # Check for inf/nan (JSON may serialize inf as "Infinity" string)
+                                val_loss_str = str(val_loss).lower()
+                                if val_loss_str not in ['inf', 'infinity', 'nan', '-inf', '-infinity']:
+                                    try:
+                                        val_loss_float = float(val_loss)
+                                        if val_loss_float != float('inf') and val_loss_float != float('-inf') and not (val_loss_float != val_loss_float):  # not NaN
+                                            valid_history.append(x)
+                                    except (ValueError, TypeError):
+                                        pass
+                        
+                        if valid_history:
+                            best_iter_info = min(valid_history, key=lambda x: float(x.get("val_loss")))
+                            best_simulator_info = {
+                                "iteration": best_iter_info.get("iteration"),
+                                "val_loss": float(best_iter_info.get("val_loss")),
+                                "code": best_iter_info.get("code"),
+                                "simulator_description": best_iter_info.get("simulator_description"),
+                                "results_json": best_iter_info.get("results_json")
+                            }
+                            logger.info(f"Alpha mode: Restored best_simulator_info from history (iteration {best_simulator_info['iteration']}, val_loss: {best_simulator_info['val_loss']:.4f})")
+                        else:
+                            logger.info("Alpha mode: No valid iterations found in history (all have invalid val_loss)")
+                except Exception as e:
+                    logger.warning(f"Alpha mode: Failed to load simulation_info_history from {simulation_info_history_path}: {e}. Starting fresh.")
+                    simulation_info_history = []
+            
+            # Initialize best_simulator_info if not loaded from history
+            if best_simulator_info is None:
+                best_simulator_info = {
+                    "iteration": None,
+                    "val_loss": float('inf'),  # Start with infinity, lower is better
+                    "code": None,
+                    "simulator_description": None,
+                    "results_json": None  # Will store the dict that constitutes output_iter_*/results.json
+                }
+                logger.info("Alpha mode: Initialized new best_simulator_info (no previous history found)")
+        
         while current_iteration < args.iterations:
             logger.info("=" * 50)
             logger.info(f"STARTING ITERATION {current_iteration + 1}/{args.iterations}")
@@ -1229,7 +1314,7 @@ def run_data_analysis_test(
                 logger.info("CODE GENERATION")
                 
                 # Select strategies for prompt BEFORE code generation (open/queued -> in_progress)
-                if playbook_manager and args.mode == "ace" and current_iteration > 0:
+                if playbook_manager and args.mode in ["ace", "alpha"] and current_iteration > 0:
                     logger.info("Selecting playbook strategies for code patch prompt...")
                     selected_ids = playbook_manager.select_strategies_for_prompt_simple(
                         max_count=None,  # Select all open/queued strategies
@@ -1263,22 +1348,37 @@ def run_data_analysis_test(
                             logger.warning(f"Failed to load previous simulation results: {e}")
                 
                 # Generate code
-                state["generated_code"] = agents["code_generation"].process(
-                    task_spec=task_spec,
-                    data_analysis=None,  # Not used in odd/ace mode
-                    model_plan=None,     # Not used in odd/ace mode
-                    feedback=state["feedback"],  # Will be None in first iteration
-                    data_path=data_path,
-                    previous_code=prev_code,
-                    historical_fix_log=historical_fix_log,
-                    mode=args.mode,
-                    selfloop=args.selfloop,
-                    blueprint=None,
-                    output_dir=args.output,
-                    iteration=current_iteration,
-                    playbook=playbook,
-                    simulation_results=prev_simulation_results  # Pass previous iteration's results for patch prompt
-                )
+                process_kwargs = {
+                    "task_spec": task_spec,
+                    "data_analysis": None,  # Not used in odd/ace mode
+                    "model_plan": None,     # Not used in odd/ace mode
+                    "feedback": state["feedback"],  # Will be None in first iteration
+                    "data_path": data_path,
+                    "previous_code": prev_code,
+                    "historical_fix_log": historical_fix_log,
+                    "mode": args.mode,
+                    "selfloop": args.selfloop,
+                    "blueprint": None,
+                    "output_dir": args.output,
+                    "iteration": current_iteration,
+                    "playbook": playbook,
+                    "simulation_results": prev_simulation_results  # Pass previous iteration's results for patch prompt
+                }
+                
+                # Add best_simulator_info and simulation_info_history for alpha mode
+                if args.mode == "alpha":
+                    if best_simulator_info is not None:
+                        process_kwargs["best_simulator_info"] = best_simulator_info
+                        if best_simulator_info.get("iteration") is not None:
+                            logger.info(f"Alpha mode: Passing best_simulator_info to code generation (best iteration: {best_simulator_info['iteration']}, val_loss: {best_simulator_info.get('val_loss', 'N/A')})")
+                        else:
+                            logger.info("Alpha mode: Passing best_simulator_info to code generation (no best iteration found yet)")
+                    
+                    # Pass simulation_info_history to code generation
+                    process_kwargs["simulation_info_history"] = simulation_info_history
+                    logger.info(f"Alpha mode: Passing simulation_info_history to code generation ({len(simulation_info_history) if simulation_info_history else 0} iterations)")
+                
+                state["generated_code"] = agents["code_generation"].process(**process_kwargs)
                 
                 # Save generated code (use current_iteration as file number: iter_0, iter_1, etc.)
                 save_generated_code(args.output, state["generated_code"], iteration=current_iteration)
@@ -1323,8 +1423,8 @@ def run_data_analysis_test(
                 save_artifact(args.output, f"simulation_results_iter_{current_iteration}", state["simulation_results"])
                 save_artifact(args.output, f"evaluation_results_iter_{current_iteration}", state["evaluation_results"])
                 logger.info(f"{args.mode.upper()} mode: Placeholders created for verification, simulation, and evaluation results")
-            # ACE mode: Skip verification, but execute simulation
-            elif args.mode == "ace":
+            # ACE/ALPHA mode: Skip verification, but execute simulation
+            elif args.mode in ["ace", "alpha"]:
                 logger.info(f"{args.mode.upper()} mode: Skipping verification, but executing simulation")
                 state["verification_results"] = {
                     "placeholder": True,
@@ -1345,7 +1445,7 @@ def run_data_analysis_test(
                     code_path=code_file_path,
                     task_spec=task_spec,
                     data_path=data_path,
-                    mode="ace",  # ACE mode uses subprocess execution (same as lite mode)
+                    mode=args.mode,  # ACE/ALPHA mode uses subprocess execution (same as lite mode)
                     output_dir=args.output,
                     iteration=current_iteration,
                     project_root=project_root,
@@ -1355,6 +1455,78 @@ def run_data_analysis_test(
                 
                 if state["simulation_results"] and state["simulation_results"].get("execution_status") == "success":
                     logger.info(f"✅ Simulation execution completed successfully")
+                    
+                    # Update simulation_info_history and best_simulator_info for alpha mode
+                    if args.mode == "alpha":
+                        # Extract val_loss from simulation_results
+                        simulation_metrics = state["simulation_results"].get("simulation_metrics", {})
+                        current_val_loss = simulation_metrics.get("val_loss")
+                        
+                        if current_val_loss is not None:
+                            # Get current iteration info
+                            current_code = None
+                            if current_iteration in code_memory:
+                                code_dict = code_memory[current_iteration]
+                                code_filename = f"simulation_code_iter_{current_iteration}.py"
+                                if isinstance(code_dict, dict) and code_filename in code_dict:
+                                    current_code = code_dict[code_filename]
+                                elif isinstance(code_dict, str):
+                                    current_code = code_dict
+                            
+                            current_simulator_description = None
+                            if state.get("generated_code") and "simulator_description" in state["generated_code"]:
+                                current_simulator_description = state["generated_code"]["simulator_description"]
+                            
+                            # Read results.json from output_iter_* directory
+                            current_results_json = None
+                            output_iter_dir = os.path.join(args.output, f"output_iter_{current_iteration}")
+                            results_json_path = os.path.join(output_iter_dir, "results.json")
+                            if os.path.exists(results_json_path):
+                                try:
+                                    with open(results_json_path, 'r', encoding='utf-8') as f:
+                                        current_results_json = json.load(f)
+                                    logger.debug(f"Alpha mode: Loaded results.json from {results_json_path}")
+                                except Exception as e:
+                                    logger.warning(f"Alpha mode: Failed to load results.json from {results_json_path}: {e}")
+                            else:
+                                logger.debug(f"Alpha mode: results.json not found at {results_json_path}")
+                            
+                            # Add current iteration info to simulation_info_history
+                            current_iteration_info = {
+                                "iteration": current_iteration,
+                                "val_loss": current_val_loss,
+                                "code": current_code,
+                                "simulator_description": current_simulator_description,
+                                "results_json": current_results_json
+                            }
+                            simulation_info_history.append(current_iteration_info)
+                            logger.info(f"Alpha mode: Added iteration {current_iteration} to simulation_info_history (val_loss: {current_val_loss:.4f})")
+                            
+                            # Persist simulation_info_history to disk
+                            try:
+                                simulation_info_history_path = os.path.join(args.output, "simulation_info_history.json")
+                                os.makedirs(args.output, exist_ok=True)
+                                with open(simulation_info_history_path, 'w', encoding='utf-8') as f:
+                                    json.dump(simulation_info_history, f, indent=2, ensure_ascii=False)
+                                logger.info(f"Alpha mode: Persisted simulation_info_history to {simulation_info_history_path}")
+                            except Exception as e:
+                                logger.warning(f"Alpha mode: Failed to persist simulation_info_history: {e}")
+                            
+                            # Update best_simulator_info if current iteration is better
+                            if best_simulator_info is not None:
+                                if current_val_loss < best_simulator_info["val_loss"]:
+                                    logger.info(f"Alpha mode: New best iteration found! val_loss: {best_simulator_info['val_loss']:.4f} -> {current_val_loss:.4f}")
+                                    
+                                    # Update best_simulator_info
+                                    best_simulator_info["iteration"] = current_iteration
+                                    best_simulator_info["val_loss"] = current_val_loss
+                                    best_simulator_info["code"] = current_code
+                                    best_simulator_info["simulator_description"] = current_simulator_description
+                                    best_simulator_info["results_json"] = current_results_json
+                                else:
+                                    logger.info(f"Alpha mode: Current iteration val_loss ({current_val_loss:.4f}) >= best ({best_simulator_info['val_loss']:.4f}), keeping best from iteration {best_simulator_info['iteration']}")
+                        else:
+                            logger.warning("Alpha mode: val_loss not found in simulation_metrics, skipping simulation_info_history and best_simulator_info update")
                 else:
                     logger.warning(f"❌ Simulation execution failed")
                 
@@ -1431,10 +1603,10 @@ def run_data_analysis_test(
                     state["evaluation_results"] = None
             
             # --------------------------------------------------
-            # STEP 5: Blueprint Feedback (ACE mode only)
+            # STEP 5: Blueprint Feedback (ACE/ALPHA mode only)
             # --------------------------------------------------
-            if args.mode == "ace":
-                logger.info("BLUEPRINT FEEDBACK (ACE mode)")
+            if args.mode in ["ace", "alpha"]:
+                logger.info("BLUEPRINT FEEDBACK (ACE/ALPHA mode)")
                 
                 # Extract current blueprint from task_spec
                 current_blueprint = {k: v for k, v in task_spec.get("data_analysis_result", {}).items() if k != "file_summaries"}
@@ -1532,6 +1704,19 @@ def run_data_analysis_test(
                 "interactive": not args.auto
             }
             
+            # Add best_simulator_info and simulation_info_history for alpha mode
+            if args.mode == "alpha":
+                if best_simulator_info is not None:
+                    process_kwargs["best_simulator_info"] = best_simulator_info
+                    if best_simulator_info.get("iteration") is not None:
+                        logger.info(f"Alpha mode: Passing best_simulator_info to feedback generation (best iteration: {best_simulator_info['iteration']}, val_loss: {best_simulator_info.get('val_loss', 'N/A')})")
+                    else:
+                        logger.info("Alpha mode: Passing best_simulator_info to feedback generation (no best iteration found yet)")
+                
+                # Pass simulation_info_history to feedback generation
+                process_kwargs["simulation_info_history"] = simulation_info_history
+                logger.info(f"Alpha mode: Passing simulation_info_history to feedback generation ({len(simulation_info_history) if simulation_info_history else 0} iterations)")
+            
             # Call feedback generation agent
             # In ACE mode with --auto=False, agent handles user feedback collection internally
             # In ACE mode with --auto=True, agent skips user feedback collection (interactive=False)
@@ -1590,8 +1775,8 @@ def run_data_analysis_test(
             
             save_artifact(args.output, f"feedback_iter_{current_iteration}", state["feedback"])
             
-            # Convert feedback to playbook entries (ACE mode only)
-            if args.mode == "ace" and playbook_manager:
+            # Convert feedback to playbook entries (ACE/ALPHA mode only)
+            if args.mode in ["ace", "alpha"] and playbook_manager:
                 feedback_to_convert = state["feedback"]
                 
                 # Check if feedback is in ACE format (dict with issue_id keys)
@@ -1655,7 +1840,7 @@ def run_data_analysis_test(
                 save_artifact(args.output, f"iteration_decision_iter_{current_iteration}", state["iteration_decision"])
                 
                 # Save iteration snapshot for playbook (checkpoint level) - this is still needed
-                if playbook_manager and args.mode == "ace":
+                if playbook_manager and args.mode in ["ace", "alpha"]:
                     playbook_manager.save_iteration_snapshot(current_iteration)
                     logger.info(f"📸 Playbook iteration snapshot saved: iter_{current_iteration:03d}")
                 
@@ -1667,9 +1852,9 @@ def run_data_analysis_test(
             
             # Note: user_feedback parameter is no longer needed for #STOP# checking
             # The #STOP# check is now done in the main workflow before calling iteration_control
-            # ACE mode uses decision function with simulation_results and feedback
+            # ACE/ALPHA mode uses decision function with simulation_results and feedback
             # Other modes use LLM-based iteration control
-            if args.mode == "ace":
+            if args.mode in ["ace", "alpha"]:
                 state["iteration_decision"] = agents["iteration_control"].process(
                     current_iteration=current_iteration,
                     max_iterations=args.iterations,
@@ -1688,7 +1873,7 @@ def run_data_analysis_test(
             save_artifact(args.output, f"iteration_decision_iter_{current_iteration}", state["iteration_decision"])
             
             # Save iteration snapshot for playbook (checkpoint level)
-            if playbook_manager and args.mode == "ace":
+            if playbook_manager and args.mode in ["ace", "alpha"]:
                 playbook_manager.save_iteration_snapshot(current_iteration)
                 logger.info(f"📸 Playbook iteration snapshot saved: iter_{current_iteration:03d}")
             
@@ -1710,7 +1895,7 @@ def run_data_analysis_test(
         last_code_iteration = current_iteration - 1 if current_iteration > 0 else 0
         
         # Finalize playbook (session level)
-        if playbook_manager and args.mode == "ace":
+        if playbook_manager and args.mode in ["ace", "alpha"]:
             final_archive_path = playbook_manager.finalize()
             logger.info(f"📚 Playbook finalized and archived: {final_archive_path}")
         
