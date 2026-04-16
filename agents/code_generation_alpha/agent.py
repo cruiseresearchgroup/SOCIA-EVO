@@ -40,6 +40,8 @@ class CodeGenerationAgent(BaseAgent):
         iteration: Optional[int] = None,
         playbook: Optional[Dict[str, Any]] = None,
         simulation_results: Optional[Dict[str, Any]] = None,
+        best_simulator_info: Optional[Dict[str, Any]] = None,
+        simulation_info_history: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Generate simulation code based on the model plan.
@@ -99,14 +101,30 @@ class CodeGenerationAgent(BaseAgent):
         }
         
         # Use patch prompt for iteration >= 1 (second iteration and beyond)
-        if iteration is not None and iteration >= 1 and mode == "ace":
-            self.logger.info(f"Using patch prompt for iteration {iteration} (ACE mode)")
-            prompt = self._build_patch_prompt(
-                task_spec=task_spec,
-                previous_code=previous_code,
-                simulation_results=simulation_results,
-                playbook=playbook,
-            )
+        # For ACE mode: use patch prompt
+        # For ALPHA mode: use patch prompt if simulation_info_history is available
+        if iteration is not None and iteration >= 1:
+            if mode == "ace":
+                self.logger.info(f"Using patch prompt for iteration {iteration} (ACE mode)")
+                prompt = self._build_patch_prompt(
+                    task_spec=task_spec,
+                    previous_code=previous_code,
+                    simulation_results=simulation_results,
+                    playbook=playbook,
+                )
+            elif mode == "alpha" and simulation_info_history is not None:
+                self.logger.info(f"Using patch prompt for iteration {iteration} (ALPHA mode with simulation_info_history)")
+                prompt = self._build_patch_prompt(
+                    task_spec=task_spec,
+                    previous_code=previous_code,
+                    simulation_results=simulation_results,
+                    playbook=playbook,
+                    best_simulator_info=best_simulator_info,
+                    simulation_info_history=simulation_info_history,
+                    iteration=iteration,
+                )
+            else:
+                prompt = self._build_prompt(**prompt_args)
         else:
             prompt = self._build_prompt(**prompt_args)
 
@@ -151,6 +169,13 @@ class CodeGenerationAgent(BaseAgent):
             output_dir=output_dir,
             iteration=iteration
         )
+
+        # Generate simulator description once per iteration (not inside self-loop)
+        simulator_description = ""
+        try:
+            simulator_description = self._generate_simulator_description(code, task_spec)
+        except Exception as e:
+            self.logger.warning(f"Failed to generate simulator_description: {e}")
         
         # Generate a summary of the code
         code_summary = self._generate_code_summary(code)
@@ -158,6 +183,7 @@ class CodeGenerationAgent(BaseAgent):
         result = {
             "code": code,
             "code_summary": code_summary,
+            "simulator_description": simulator_description,
             "metadata": {
                 "model_type": model_plan.get("model_type", mode) if model_plan else mode,
                 "entities": [e.get("name") for e in model_plan.get("entities", [])] if model_plan else [],
@@ -1055,6 +1081,69 @@ class CodeGenerationAgent(BaseAgent):
         self.logger.info("Code improved based on self-checking issues")
         return improved_code
     
+    def _build_simulator_description_prompt(self, code: str, task_spec: Dict[str, Any]) -> str:
+        """
+        Build a prompt to summarize the generated simulator code.
+        
+        The LLM should return a concise reasoning-oriented description of the model.
+        """
+        task_description = task_spec.get("description", "No task description provided")
+        blueprint = {k: v for k, v in task_spec.get("data_analysis_result", {}).items() if k != "file_summaries"}
+        blueprint_str = json.dumps(blueprint, indent=2) if blueprint else "No blueprint provided"
+        code_summary = self._generate_code_summary(code)
+        
+        prompt = f"""
+You are a simulation reviewer. Given the generated Python simulator code, produce a concise description (one short paragraph) explaining what the simulator models and why the structure/assumptions make sense.
+
+STRICT OUTPUT: Return ONLY a JSON object with key "simulator_description" whose value is a string (no markdown, no code fences).
+
+Context:
+- Task: {task_description}
+- Code summary: {code_summary}
+
+Full generated code:
+```python
+{code}
+```
+
+Respond as:
+{{
+  "simulator_description": "<concise description and reasoning>"
+}}
+"""
+        return prompt
+    
+    def _parse_simulator_description(self, llm_response: str) -> str:
+        """
+        Parse simulator_description from LLM response (robust to extra text).
+        """
+        if not llm_response:
+            return ""
+        
+        # Try to extract JSON block first
+        first_brace = llm_response.find('{')
+        last_brace = llm_response.rfind('}')
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            json_str = llm_response[first_brace:last_brace+1]
+            try:
+                obj = json.loads(json_str)
+                desc = obj.get("simulator_description") or obj.get("description")
+                if isinstance(desc, str):
+                    return desc.strip()
+            except Exception:
+                pass
+        
+        # Fallback: use raw response (trimmed)
+        return llm_response.strip()
+    
+    def _generate_simulator_description(self, code: str, task_spec: Dict[str, Any]) -> str:
+        """
+        Generate simulator_description once per iteration (before self-loop modifications).
+        """
+        prompt = self._build_simulator_description_prompt(code, task_spec)
+        llm_response = self._call_llm(prompt, reasoning={"effort": "low"})
+        return self._parse_simulator_description(llm_response)
+    
     def _fix_syntax(self, code: str, error: SyntaxError) -> str:
         """
         Fix syntax errors in code.
@@ -1218,10 +1307,51 @@ class CodeGenerationAgent(BaseAgent):
             
             # For ACE/ALPHA mode, use template with blue_print, file_summaries, and playbook placeholders
             if mode in ["ace", "alpha"]:
-                # Check if task description contains "daily mobility trajectories" for coding_patch replacement
-                task_description = task_spec.get('description', '').lower()
+                # Task description (both raw and lower-cased for matching)
+                task_description_raw = task_spec.get('description', '')
+                task_description = task_description_raw.lower()
+                
+                # Decide coding_patch content for ACE / ALPHA
                 coding_patch_content = ""
-                if 'daily mobility trajectories' in task_description:
+                
+                # Alpha-specific patch for COVID SIR calibration tasks
+                if mode == "alpha" and "covid sir" in task_description:
+                    self.logger.info("Alpha mode: injecting COVID SIR SBI calibration patch into {coding_patch} placeholder")
+                    try:
+                        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                        template_path = os.path.join(project_root, "templates", "gsim_sir_patch_prompt.txt")
+                        with open(template_path, 'r', encoding='utf-8') as f:
+                            coding_patch_content = f.read().strip()
+                        self.logger.debug(f"Successfully loaded COVID SIR patch from {template_path}")
+                    except Exception as e:
+                        self.logger.error(f"Error loading gsim_sir_patch_prompt.txt: {e}")
+                        coding_patch_content = ""
+                # Alpha-specific patch for Three-disease Hospital calibration tasks
+                elif mode == "alpha" and "three-disease hospital" in task_description:
+                    self.logger.info("Alpha mode: injecting Three-disease Hospital SBI calibration patch into {coding_patch} placeholder")
+                    try:
+                        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                        template_path = os.path.join(project_root, "templates", "gsim_hosp_patch_prompt.txt")
+                        with open(template_path, 'r', encoding='utf-8') as f:
+                            coding_patch_content = f.read().strip()
+                        self.logger.debug(f"Successfully loaded Three-disease Hospital patch from {template_path}")
+                    except Exception as e:
+                        self.logger.error(f"Error loading gsim_hosp_patch_prompt.txt: {e}")
+                        coding_patch_content = ""
+                # Alpha-specific patch for Beer Game (SUPPLY) calibration tasks
+                elif mode == "alpha" and "beer game (supply)" in task_description:
+                    self.logger.info("Alpha mode: injecting Beer Game (SUPPLY) SBI calibration patch into {coding_patch} placeholder")
+                    try:
+                        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                        template_path = os.path.join(project_root, "templates", "gsim_supply_patch_prompt.txt")
+                        with open(template_path, 'r', encoding='utf-8') as f:
+                            coding_patch_content = f.read().strip()
+                        self.logger.debug(f"Successfully loaded Beer Game (SUPPLY) patch from {template_path}")
+                    except Exception as e:
+                        self.logger.error(f"Error loading gsim_supply_patch_prompt.txt: {e}")
+                        coding_patch_content = ""
+                # Existing LLMOB patch for daily mobility trajectories
+                elif "daily mobility trajectories" in task_description:
                     self.logger.info("Loading llmob patch content for {coding_patch} placeholder (iteration 0)")
                     try:
                         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1364,6 +1494,9 @@ class CodeGenerationAgent(BaseAgent):
         previous_code: Optional[Dict[str, str]] = None,
         simulation_results: Optional[Dict[str, Any]] = None,
         playbook: Optional[Dict[str, Any]] = None,
+        best_simulator_info: Optional[Dict[str, Any]] = None,
+        simulation_info_history: Optional[List[Dict[str, Any]]] = None,
+        iteration: Optional[int] = None,
     ) -> str:
         """
         Build a patch-level prompt for code generation (iteration >= 1).
@@ -1373,6 +1506,7 @@ class CodeGenerationAgent(BaseAgent):
             previous_code: Code from the previous iteration
             simulation_results: Results from simulation execution
             playbook: Playbook dictionary (will be transformed)
+            best_simulator_info: Best simulator info for alpha mode (optional)
         
         Returns:
             Formatted prompt string
@@ -1487,8 +1621,119 @@ class CodeGenerationAgent(BaseAgent):
 # DO NOT output anything else.
 # """
 
-        # U-shape structure
-        prompt_template = """SYSTEM:
+        # Use new prompt template for alpha mode with simulation_info_history, otherwise use original
+        if simulation_info_history is not None:
+            # New prompt template for alpha mode
+            prompt_template = """SYSTEM:
+        # ROLE & OBJECTIVE
+        You are the Code Patch Agent for a social simulation system.
+        Your Goal: FIX and IMPROVE the `PREVIOUS_CODE` and resolve `SIMULATION_RESULTS`, with the specific aim of achieving a LOWER validation error.
+        You MUST use the Playbook as an external tool: read it first, then selectively apply only the relevant strategies.
+        Treat the Playbook as a tool. Use relevant parts, do NOT force irrelevant parts into the solution.
+
+        # CRITICAL "PATCH-LEVEL" PROTOCOL (HARD CONSTRAINTS)
+        1. **Refinement, Not Rewrite**: Do NOT rewrite the entire program from scratch. Make minimal, targeted edits.
+        2. **Single File**: You must output a single updated standalone Python program based on PREVIOUS_CODE.
+        3. **Preserve Interfaces / Skeleton**:
+           - You MUST NOT change the existing code skeleton, or input variables.
+           - Do NOT rename existing public functions/classes or reorder major blocks unless Blueprint explicitly requires it.
+           - Keep function signatures and the orchestrator flow intact.
+        4. **You MUST generate code**: You cannot give an empty-string answer. You must output runnable Python code.
+
+        # DO-NOT-CHANGE GUARANTEES (STRICT)
+        A) **Do NOT modify any output files, filenames, output paths, output schemas, or output formats** produced by the program.
+           - Keep the exact same files written to disk as in PREVIOUS_CODE.
+           - Keep the exact same CSV/JSON structure, column names, key names, and serialization format.
+        B) **Do NOT modify metric computation**:
+           - Keep metric definitions, aggregation, and reporting exactly the same as PREVIOUS_CODE.
+           - Do NOT change how training/validation/test metrics are computed, named, or logged.
+        C) **Do NOT change integration-required path handling** (must copy exactly as provided below).
+
+        # OUTPUT REQUIREMENT (STRICT, but position-aware):
+        You must output the following two variables as triple-quoted JSON strings somewhere near the top of the file, but do NOT break Python syntax.
+        1. `PLAYBOOK_USAGE_JSON = '''...'''` (Triple-quoted JSON string)
+        Schema: {{"used_bullets":[{{"id":"<strategy_id>","why":"<relevance>"}}]}}
+        2. `CHANGE_SUMMARY_JSON = '''...'''` (Triple-quoted JSON string)
+        Schema: {{"touched_symbols":[{{"symbol":"<name>","reason":"<why>"}}], "applied_strategies":[{{"id":"<id>","applied":true}}]}}
+        Placement rules (to avoid SyntaxError):
+           - If the program includes any from __future__ import ... statements (e.g., from __future__ import annotations), those future-import lines MUST appear before any other executable statements. Therefore, place the two JSON variables immediately after the future-import line(s) and after the module docstring (if any), but before the rest of the code.
+           - If there is no future-import, place the two JSON variables at the top of the file after an optional module docstring.
+           - Do not wrap these JSON strings in Markdown fences. The rest of the output must be pure Python code.
+
+        # CORE FUNCTIONAL REQUIREMENT (MERGED; HIGH PRIORITY)
+        Please now regenerate the code function(s) / implementation where needed, with the aim to improve the code to achieve a lower validation error.
+        - Use the feedback where applicable (Simulation Results + Playbook + Blueprint).
+        - When you are unsure about something, take your best guess.
+        - You have to generate code, and cannot give an empty string answer.
+        - You cannot change the code skeleton, or input variables.
+        - You MUST preserve the program's external behavior: output files and formats, and metric computation, must remain unchanged.
+
+        USER:
+        Here is the context for the current iteration.
+
+        # PART 1: CONTEXT & DIAGNOSTICS (Reference Material)
+        ========================
+        PREVIOUS_CODE (Baseline to Patch)
+        ========================
+        {previous_code}
+
+        ========================
+        SIMULATION RESULTS (Symptoms & Metrics)
+        ========================
+        {simulation_results}
+
+        # PART 2: IMPLEMENTATION CONSTRAINTS (MUST FOLLOW)
+        *Attention: The following rules determine the correctness of the system integration.*
+        1. **Path Handling Instructions (COPY EXACTLY)**:
+           Keep the path setup exactly as follows:
+           ```python
+           PROJECT_ROOT = os.environ.get("PROJECT_ROOT")
+           DATA_PATH = os.environ.get("DATA_PATH")
+           DATA_DIR = os.path.join(PROJECT_ROOT, DATA_PATH)
+           ```
+           Note: Do NOT add `import os` inside functions if `os` is already imported at the module level.
+           Only use the path setup code above.
+
+        2. Global Requirements:
+            - Write clean, modular, PEP-8 compliant code.
+            - Complete docstrings (triple-quoted).
+            - Full class/function bodies (NO stubs, NO pass without reason).
+            - Validate all inputs; raise clear exceptions.
+
+        3. Coding patch:
+            {coding_patch}
+
+        # PART 3: TARGET & STRATEGY (High-Attention Region)
+        CRITICAL: Read the Blueprint and Playbook immediately before coding.
+        ========================
+        BLUEPRINT (AUTHORITATIVE)
+        ========================
+        {blue_print}
+
+        ========================
+        PLAYBOOK (The Solution Strategy)
+        Usage Policy:
+        - Prioritize: blocker > high > medium > low.
+        - Select only strategies relevant to the current Blueprint or Simulation Results.
+        - If a strategy suggests a change, you MUST implement it.
+        ========================
+        {playbook}
+
+        # FINAL INSTRUCTION:
+        1. Review the Playbook and Blueprint above.
+        2. Check the Simulation Results to identify what broke and what causes high validation error.
+        3. Apply the Playbook strategies to fix PREVIOUS_CODE while strictly adhering to the Implementation Constraints (Path & Orchestrator).
+        4. Improve validation error by fixing mechanisms/logic bugs/mismatches, but do NOT change:
+           - output files, filenames, output schemas/formats
+           - metric computation and metric reporting
+           - code skeleton, input variables, or public interfaces
+
+        Generate the response now, starting strictly with the first line:
+        PLAYBOOK_USAGE_JSON = '''
+        """
+        else:
+            # Original prompt template for ACE mode
+            prompt_template = """SYSTEM:
         # ROLE & OBJECTIVE
         You are the Code Patch Agent for a social simulation system.
         Your Goal: FIX and IMPROVE the `PREVIOUS_CODE` to satisfy the `BLUEPRINT` and resolve `SIMULATION_RESULTS`.
@@ -1580,36 +1825,105 @@ class CodeGenerationAgent(BaseAgent):
         blueprint = {k: v for k, v in task_spec.get("data_analysis_result", {}).items() if k != "file_summaries"}
         blueprint_str = json.dumps(blueprint, indent=2, ensure_ascii=False) if blueprint else "No blueprint provided"
         
-        # Format previous code
-        previous_code_str = "No previous code available"
-        if previous_code:
-            if isinstance(previous_code, dict):
-                # Get the first code file (usually there's only one)
-                for filename, code in previous_code.items():
-                    previous_code_str = code
+        # Format previous code and simulation results
+        # Priority order:
+        # 1. If simulation_info_history exists: use current iteration's data from history
+        # 2. Else if best_simulator_info exists: use best_simulator_info data
+        # 3. Else: use previous_code and simulation_results parameters (ACE mode)
+        
+        # First, try to get PREVIOUS iteration info from simulation_info_history
+        # For iteration k (k >= 1), we want to patch based on iteration k-1
+        prev_iteration_info = None
+        if simulation_info_history is not None and iteration is not None and iteration > 0:
+            prev_iter = iteration - 1
+            for hist_item in simulation_info_history:
+                if hist_item.get("iteration") == prev_iter:
+                    prev_iteration_info = hist_item
                     break
-            elif isinstance(previous_code, str):
-                previous_code_str = previous_code
         
-        # Format simulation results
-        simulation_results_str = json.dumps(simulation_results, indent=2, default=str, ensure_ascii=False) if simulation_results else "No simulation results provided"
+        if prev_iteration_info is not None:
+            # Use previous iteration's data from simulation_info_history
+            previous_code_str = prev_iteration_info.get("code", "") or "No previous code available"
+            prev_results_json = prev_iteration_info.get("results_json", {}) or {}
+            simulation_results_str = json.dumps(prev_results_json, indent=2, default=str, ensure_ascii=False) if prev_results_json else "No simulation results provided"
+            self.logger.info(f"Alpha mode: Using previous iteration {prev_iter} data from simulation_info_history for patch prompt")
+        elif best_simulator_info is not None:
+            # Fallback: Use best_simulator_info for alpha mode
+            previous_code_str = best_simulator_info.get("code", "") or "No previous code available"
+            results_json = best_simulator_info.get("results_json", {}) or {}
+            simulation_results_str = json.dumps(results_json, indent=2, default=str, ensure_ascii=False) if results_json else "No simulation results provided"
+            self.logger.info(f"Alpha mode: Using best_simulator_info from iteration {best_simulator_info.get('iteration', 'N/A')} with val_loss {best_simulator_info.get('val_loss', 'N/A')}")
+        else:
+            # Use previous_code and simulation_results parameters (ACE mode)
+            previous_code_str = "No previous code available"
+            if previous_code:
+                if isinstance(previous_code, dict):
+                    # Get the first code file (usually there's only one)
+                    for filename, code in previous_code.items():
+                        previous_code_str = code
+                        break
+                elif isinstance(previous_code, str):
+                    previous_code_str = previous_code
+            
+            # Format simulation results
+            simulation_results_str = json.dumps(simulation_results, indent=2, default=str, ensure_ascii=False) if simulation_results else "No simulation results provided"
         
-        # Transform and format playbook
+        # Transform and format playbook (always follow ACE-mode behavior):
+        # only include strategies that were selected for the current prompt (status="in_progress").
         transformed_playbook = self._transform_playbook_for_prompt(playbook)
         playbook_str = json.dumps(transformed_playbook, indent=2, ensure_ascii=False)
         
-        # Check if task description contains "daily mobility trajectories" for coding_patch replacement
-        task_description = task_spec.get('description', '').lower()
+        # For ACE mode: check if task description contains "daily mobility trajectories"
+        # For alpha mode with best_simulator_info: check if task description contains "COVID SIR"
         coding_patch_content = ""
-        if 'daily mobility trajectories' in task_description:
-            self.logger.info("Loading llmob patch content for {coding_patch} placeholder (iteration >= 1)")
-            try:
-                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                template_path = os.path.join(project_root, "templates", "llmob_patch_prompt.txt")
-                with open(template_path, 'r', encoding='utf-8') as f:
-                    coding_patch_content = f.read()
-            except Exception as e:
-                self.logger.error(f"Error loading llmob_patch_prompt.txt: {e}")
+        task_description = task_spec.get('description', '').lower()
+        
+        if best_simulator_info is None:
+            # ACE mode: check for "daily mobility trajectories"
+            if 'daily mobility trajectories' in task_description:
+                self.logger.info("Loading llmob patch content for {coding_patch} placeholder (iteration >= 1)")
+                try:
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "llmob_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        coding_patch_content = f.read()
+                except Exception as e:
+                    self.logger.error(f"Error loading llmob_patch_prompt.txt: {e}")
+        else:
+            # Alpha mode: check for task-specific patches
+            if "covid sir" in task_description:
+                self.logger.info("Alpha mode: Loading COVID SIR patch content for {coding_patch} placeholder (iteration >= 1)")
+                try:
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "gsim_sir_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        coding_patch_content = f.read().strip()
+                    self.logger.debug(f"Successfully loaded COVID SIR patch from {template_path}")
+                except Exception as e:
+                    self.logger.error(f"Error loading gsim_sir_patch_prompt.txt: {e}")
+                    coding_patch_content = ""
+            elif "three-disease hospital" in task_description:
+                self.logger.info("Alpha mode: Loading Three-disease Hospital patch content for {coding_patch} placeholder (iteration >= 1)")
+                try:
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "gsim_hosp_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        coding_patch_content = f.read().strip()
+                    self.logger.debug(f"Successfully loaded Three-disease Hospital patch from {template_path}")
+                except Exception as e:
+                    self.logger.error(f"Error loading gsim_hosp_patch_prompt.txt: {e}")
+                    coding_patch_content = ""
+            elif "beer game (supply)" in task_description:
+                self.logger.info("Alpha mode: Loading Beer Game (SUPPLY) patch content for {coding_patch} placeholder (iteration >= 1)")
+                try:
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    template_path = os.path.join(project_root, "templates", "gsim_supply_patch_prompt.txt")
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        coding_patch_content = f.read().strip()
+                    self.logger.debug(f"Successfully loaded Beer Game (SUPPLY) patch from {template_path}")
+                except Exception as e:
+                    self.logger.error(f"Error loading gsim_supply_patch_prompt.txt: {e}")
+                    coding_patch_content = ""
         
         # Replace {coding_patch} placeholder first
         prompt_template_with_patch = prompt_template.replace("{coding_patch}", coding_patch_content)

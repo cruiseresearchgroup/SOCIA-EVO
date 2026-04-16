@@ -37,7 +37,6 @@ ADDITIONAL CONSTRAINTS
 2. Path Handling Instructions
 When generating code, setup data file paths as follows:
 ```python
-import os
 PROJECT_ROOT = os.environ.get("PROJECT_ROOT")
 DATA_PATH = os.environ.get("DATA_PATH")
 DATA_DIR = os.path.join(PROJECT_ROOT, DATA_PATH)

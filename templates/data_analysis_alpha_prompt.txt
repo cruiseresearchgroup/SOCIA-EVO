@@ -1,0 +1,227 @@
+You are an expert data scientist and simulation modeler. Your task is to analyze the provided task description and data summaries to design a simulation model blueprint for subsequent code generation.
+
+Overall simulation design: automatically generate and calibrate the simulator. This requires defining the classes and functions within the simulator, as well as how these classes and functions interact.
+
+IMPORTANT GLOBAL REQUIREMENT (capability realization):
+- The simulator is potentially multi-agent. You must decide, from the task description and data, what agent roles are needed. **Do not assume fixed role names; derive them.**
+- For every agent role you define, you must specify how the agent’s capability is realized. Capability can be realized in one or more of the following ways:
+  1. **Heuristic / rule-based logic** (e.g., if-else, scoring, priority rules).
+  2. **Tool / mature component / retrieval calls** (e.g., look up JSON/DB/index, call an external API wrapper, load a local model).
+  3. **LLM-calling with prompt injection** (the agent assembles a structured prompt from task inputs, context data, and other agents’ outputs, then calls an LLM).
+- If an agent uses LLM-calling as part of its capability, you **must** leave a placeholder for the prompt, such as `"llm_prompt_skeleton"`, and specify what fields must be injected (IDs, profiles, metadata, history, plan/context, domain/platform hints, etc.), so that later stages can fill or modify the actual prompt.
+- The blueprint must produce clear **slots/placeholders** for the subsequent code generation agent, e.g. `llm_run(<prompt_skeleton>, temperature)`, `tool_fetch_x(...)`, `rule_decide(...)`, so the code can be generated mechanically.
+
+CRITICAL GROUNDING POLICY (IMPORTANT):
+- You must be faithful to the provided DATA SUMMARIES: do NOT invent files or fields that do not exist there.
+- HOWEVER, not every design choice must come from data.
+  - If a design element can be reasonably derived/mapped from data, you SHOULD specify the file/field mapping.
+  - If a design element is not directly supported by data (or no corresponding field exists), you MUST mark it as "designed" and provide a brief rationale.
+- For every key design element (agent attribute/state, interaction edge, exogenous signal, metric target), you must provide a "source_type" label:
+  - "data_derived": directly from one or more file fields
+  - "designed": invented/assumed by the modeler/LLM (no direct file support)
+  - "mixed": partially from data, partially designed
+  - "unknown": unclear from summaries; requires later clarification
+- If source_type is "data_derived" or "mixed", include an explicit data_reference (file + fields + derivation rule).
+- If source_type is "designed" or "unknown", set data_reference=null and explain rationale/assumption.
+
+TASK DESCRIPTION:
+{task_description}
+
+DATA SUMMARIES:
+{file_summaries_text}
+
+Based on the provided task description and data summaries, please analyze the data and provide guidelines for simulation model construction.
+
+Your analysis must cover:
+1) Overall simulation design:
+   - State the primary objective of the simulation.
+   - Specify how the simulation initializes from inputs.
+   - Specify the execution of the simulation (must involve tuning parameters through data calibration).
+   - Specify what artifacts it outputs after execution (must include calibrated parameters and evaluation results on validation).
+   - If any initial states/seeds/signals are data-driven, specify their data_reference; otherwise mark them as designed.
+2) Scale & Granularity: Specify time step, spatial resolution (or explicitly "non-spatial"), and population size (agents), with brief rationale and source_type.
+3) Agent Archetypes:
+   - Define the agent unit and the set of agent roles you infer from the task.
+   - For each role: list static attributes and dynamic states.
+   - Explain how static attributes are constructed and how dynamic states update.
+   - For EACH attribute/state, provide source_type + (optional) data_reference.
+4) Interaction Topology:
+   - Describe how agents (the roles you defined) interact.
+   - Explain how to build interactions (layers/edges/protocols) from the input data.
+   - For EACH layer/edge construction rule, provide source_type + (optional) data_reference.
+5) Information Propagation:
+   - Clarify whether information diffusion/message passing exists, its topology/mechanism, and how to parameterize/drive it using inputs.
+   - If data-driven, provide data_reference; else mark designed/unknown.
+6) Exogenous Signals:
+   - Identify any external signals/interventions, how they are derived from inputs, and how they affect agent decisions.
+   - For each signal, provide source_type + (optional) data_reference.
+7) Action Decision Policy:
+   - Describe actions taken by agents and the decision policy mapping observations/signals to actions; include role-specific inputs and policy forms.
+   - For each role’s policy inputs, provide source_type + (optional) data_reference.
+8) Capability Realization (CRUCIAL): For **each** agent role you defined, specify:
+   - supported realization modes: ["heuristic_rules", "tool_calls", "llm_calls"] (one or many);
+   - if "llm_calls" is included, provide an `"llm_prompt_skeleton"` showing what fields should be inserted later;
+   - tool/data dependencies (e.g. indexed user/item/review, feature store, external APIs);
+   - fallback strategy if LLM or tool is unavailable;
+   - how intermediate reasoning/results are logged back to a shared memory/log.
+9) Holdout:
+   - Propose a training / validation data split plan if needed.
+   - For time series, prefer first 80% of time as train and last 20% as validation; state exact ranges or a rule.
+   - IMPORTANT (task-grounding, if applicable): explicitly reference which file(s)/field(s) define time ordering for the split.
+10) Simulation Evaluation:
+   - Define evaluation metrics and how to compare simulator outputs against validation ground truth.
+   - IMPORTANT (task-grounding, if applicable): explicitly name the ground-truth file(s)/field(s) for each metric.
+11) Calibratable Parameters: List tunable parameters with bounds/ranges that will be used for configuring the simulation.
+
+Provide your response in the following JSON format (valid JSON only, no extra text):
+{
+  "overall_simulation_design": {
+    "objective": "what is this simulation about",
+    "initialization": {
+      "description": "How the simulation starts (states, seeds, signals)",
+      "source_type": "data_derived|designed|mixed|unknown",
+      "data_reference": {"file": "filename", "fields": ["field_a"], "derivation": "how derived"}
+    },
+    "execution": "How to tune parameters through data calibration",
+    "outputs": ["calibrated_parameters", "evaluation_results_on_validation"]
+  },
+  "scale_granularity": {
+    "time_step": {"value": "seconds|minutes|hours|days", "source_type": "data_derived|designed|mixed|unknown", "data_reference": null},
+    "spatial_resolution": {"value": "non-spatial|grid|POI|road network|other:<...>", "source_type": "data_derived|designed|mixed|unknown", "data_reference": null},
+    "population_size": {"value": "integer or description tied to data", "source_type": "data_derived|designed|mixed|unknown", "data_reference": null},
+    "rationale": "Why these scales are appropriate"
+  },
+  "agent_archetypes": {
+    "unit": "e.g., simulated_entity|user|household|device",
+    "roles": [
+      {
+        "name": "role_name_derived_from_task",
+        "static_attributes": [
+          {
+            "name": "attr_name",
+            "type": "int|float|string|enum|vector|other",
+            "source_type": "data_derived|designed|mixed|unknown",
+            "data_reference": {"file": "filename", "fields": ["field_name"], "derivation": "mapping/aggregation rule"}
+          }
+        ],
+        "dynamic_states": [
+          {
+            "name": "state_name",
+            "type": "int|float|string|enum|vector|other",
+            "update_rule": "how it updates",
+            "source_type": "data_derived|designed|mixed|unknown",
+            "data_reference": {"file": "filename", "fields": ["field_name"], "derivation": "mapping/aggregation rule"}
+          }
+        ],
+        "construction_from_data": "Explain construction; if designed, explain assumption",
+        "update_from_data": "Explain updates; if designed, explain assumption"
+      }
+    ]
+  },
+  "interaction_topology": {
+    "topology": "graph|hybrid|broadcast|platform-level",
+    "layers": [
+      {
+        "name": "layer_name",
+        "from_role": "role_name",
+        "to_role": "role_name",
+        "edge_rule": "how nodes/edges/events are formed",
+        "source_type": "data_derived|designed|mixed|unknown",
+        "data_reference": {"file": "filename", "fields": ["src_id", "dst_id"], "derivation": "edge construction rule"}
+      }
+    ],
+    "protocol": "describe message passing/order among these roles"
+  },
+  "information_propagation": {
+    "exists": true,
+    "topology": "which roles/channels are used for diffusion",
+    "mechanism": "how diffusion works",
+    "source_type": "data_derived|designed|mixed|unknown",
+    "data_reference": {"file": "filename", "fields": ["field_name"], "derivation": "drive intensity/schedule"}
+  },
+  "exogenous_signals": [
+    {
+      "name": "signal_name",
+      "effect_on_agents": "how it enters decision function",
+      "bounds": "[low, high] or rationale",
+      "source_type": "data_derived|designed|mixed|unknown",
+      "data_reference": {"file": "filename", "fields": ["field_name"], "derivation": "how derived"}
+    }
+  ],
+  "action_decision_policy": {
+    "by_role": [
+      {
+        "role": "role_name_derived_from_task",
+        "inputs": [
+          {
+            "name": "obs_or_signal_name",
+            "source_type": "data_derived|designed|mixed|unknown",
+            "data_reference": {"file": "filename", "fields": ["field_name"], "derivation": "how computed"}
+          }
+        ],
+        "policy_form": "policy description",
+        "parameters": ["list of per-role parameter names (if any)"]
+      }
+    ]
+  },
+  "capability_realization": [
+    {
+      "role": "role_name_derived_from_task",
+      "modes": ["heuristic_rules", "tool_calls", "llm_calls"],
+      "llm_prompt_skeleton": "If llm_calls is used, provide a high-level prompt template with placeholders",
+      "tool_dependencies": ["list of tool/data lookup functions (only cite files/fields when data-derived)"],
+      "fallback_strategy": "what to do if LLM/tool is unavailable",
+      "logging": "what intermediate results are written back to shared memory/log"
+    }
+  ],
+  "holdout_plan": {
+    "method": "temporal_holdout|random_split|rolling_backtest",
+    "time_ordering": {
+      "source_type": "data_derived|designed|mixed|unknown",
+      "data_reference": {"file": "filename", "fields": ["time_field"], "derivation": "ordering rule"}
+    },
+    "train_range": "rule to compute train set",
+    "validation_range": "rule to compute validation set",
+    "notes": "split notes"
+  },
+  "simulation_evaluation": {
+    "metrics": [
+      {
+        "name": "metric_name",
+        "definition": "how to compute it",
+        "ground_truth": {
+          "source_type": "data_derived|designed|mixed|unknown",
+          "data_reference": {"file": "filename", "fields": ["target_field"], "derivation": "target extraction"}
+        }
+      }
+    ],
+    "comparison_method": "how to compute metrics on validation set and report"
+  },
+  "calibratable_parameters": [
+    {
+      "name": "parameter_name",
+      "range_bounds": "[low, high] or rationale",
+      "source": "constrained by data or modeling",
+      "notes": "tie to interaction or decision speed"
+    }
+  ],
+  "llm_and_tool_specs": {
+    "llm_required": true,
+    "llm_calls": [
+      {
+        "name": "llm_call_name_derived_from_role",
+        "inputs": ["list of fields/placeholders to inject"],
+        "output": "expected JSON/structured output"
+      }
+    ],
+    "tool_wrappers": [
+      {
+        "name": "tool_function_name",
+        "input_type": "string|object",
+        "output_type": "structured_json"
+      }
+    ]
+  }
+}
+
+Return only valid JSON that can be parsed. Do not include any other explanation or text outside the JSON.

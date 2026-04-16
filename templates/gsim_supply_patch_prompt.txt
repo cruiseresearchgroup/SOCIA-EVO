@@ -1,0 +1,145 @@
+Objective:
+Generate discrete-time supply-chain trajectories for a Single-stage Beer Game supply chain environment (SUPPLY) and calibrate simulator parameters so simulated trajectories match observed data.
+Use Simulation-Based Inference (SBI) with Neural Posterior Estimation (NPE) to infer parameters from a single observed trajectory (train trajectory_id=0 / train_states[0]), then evaluate on full train/val/test sets using MSE losses.
+
+Model / Simulator:
+Discrete-time stochastic Beer Game single-stage environment.
+
+State at day t is a dictionary:
+"inventory": int
+"pipeline": list[(int, int)] where each entry is (quantity, time_remaining)
+"backlog": int
+"t": int
+
+Action at time t:
+action: int = the new order quantity placed with the supplier at time t.
+The order becomes a new pipeline shipment with a lead time sampled from a discrete distribution (parameterized in the simulator).
+
+Trajectory length: Collected trajectories last 60 time steps (days), i.e. 61 states with t = 0..60.
+
+Transition dynamics (Step Function):
+At each step (from state[t] to state[t+1]):
+1. Pipeline progression & arrivals:
+ - Decrement time_remaining for each pipeline entry.
+ - Deliver any shipment whose time_remaining becomes 0 into inventory.
+2. Demand realization (stochastic):
+ - Sample demand d_t from a parameterized distribution (e.g., Poisson / Negative Binomial / clipped Gaussian).
+ - Demand may be time-dependent or include mild seasonality / drift if needed, but must remain interpretable.
+3. Fulfillment & backlog update:
+ - Fulfill demand from inventory.
+ - Unmet demand accumulates into backlog.
+ - Backlog handling rule must be explicitly defined (e.g., serve backlog first vs serve current demand first). Use one consistent convention.
+4. Place new order:
+ - Append (quantity=action, time_remaining=L_t) to pipeline where L_t is sampled from a discrete distribution.
+ - IMPORTANT: if you parameterize categorical lead-time probabilities, normalize inside step().
+5. Time update: t = t + 1
+
+Hard invariants / consistency:
+ - inventory >= 0, backlog >= 0
+ - pipeline must remain a list of tuples (q, tau) with q >= 0 and tau >= 0
+ - t increments by 1 each step and matches dataset progression
+ - Any stochastic sampling must be driven by rng (or numpy random state) for reproducibility
+ - Trajectory horizon T is derived from data: typically T = len(train_states[0]) - 1 (≈ 60)
+
+SBI Calibration Procedure:
+1) Observation construction (single-trajectory):
+Use train_states[0] only (trajectory_id=0) as the sole observation.
+Observation encoding uses SUPPLY-specific trajectories_to_numpy:
+For each time step t, map the state dict into a fixed 4-D vector:
+ - inventory
+ - backlog
+ - pipeline_len = len(pipeline) (critical simplification)
+ - t
+Thus:
+ - observed_trajectory_np = trajectories_to_numpy(train_states[0])
+ - shape: (T+1, 4) where T ≈ 60
+Flatten:
+ - x_o = torch.tensor(observed_trajectory_np, dtype=torch.float32).reshape(1, -1)
+ - shape: (1, (T+1)*4) → when T=60, length is 244
+Key note (design constraint):
+ - Pipeline is a variable-length list of tuples, so SBI uses pipeline_len only, discarding (quantity, time_remaining) details, to keep fixed dimension.
+
+2) Simulated pairs (θ, x) for training NPE:
+Sample parameters θ from a BoxUniform prior: constructed from Model().get_parameters_uniform_prior_min_max()
+
+For each sampled θ:
+ - instantiate model and set_parameters(theta)
+ - rollout from initial state train_states[0][0]
+ - rollout horizon T = len(train_states[0]) - 1
+ - produce predicted trajectory states
+ - compress to (T+1, 4) via trajectories_to_numpy
+ - flatten to x with shape (1, (T+1)*4), Collect training pairs (θ, x).
+
+3) Train posterior estimator (NPE)
+Train NPE to learn p(θ | x) using collected (θ,x) pairs.
+
+4) Posterior inference:
+Condition on real observation x_o:
+ - sample θ* from p(θ | x_o).
+ - use posterior mean as: optimized_parameters = mean(theta_samples)
+
+Evaluation:
+Using optimized_parameters, evaluate on all splits:
+ - Train set: scalar Train MSE over all trajectories
+ - Val set: scalar Val MSE + val_loss_per_dim (4 dims)
+ - Test set: scalar Test MSE
+Losses are computed over all time steps and the 4 encoded dimensions.
+
+Initialization / Horizon:
+ - Per trajectory: initial state is time_step 0 state dict.
+ - Horizon T derived from the dataset: T = max time_step, typically 60.
+ - The simulator rollouts must produce exactly T+1 states for fair comparison.
+
+### UNIFIED OUTPUT CONTRACT (MUST FOLLOW)
+
+**CLI**
+
+* The program MUST accept `--output_dir <path>`.
+* Create the directory if missing. Write ALL outputs under it.
+
+Outputs (STRICT CONTRACT — MUST FOLLOW EXACTLY)
+1. Write results.json to the `--output_dir <path>` directory (exact filename: results.json).
+ - Must contain exactly these top-level keys:
+    - "optimized_parameters"
+    - "calibration_artifacts"
+    - "metrics"
+
+2. optimized_parameters schema
+ - JSON object mapping parameter_name -> float.
+ - The keys must match the simulator’s parameterization exactly (e.g., "demand_b0", "demand_b_sin", "demand_b_cos", "demand_period", "demand_ar_rho_raw", "demand_ar_sigma", "demand_obs_sigma", "fill_logit", "leadtime_logits[0]", ...).
+ - If you internally store parameters as a vector θ, you must export a named dict in a deterministic order.
+
+3. calibration_artifacts schema:
+ - Must be a JSON object containing calibration information needed for reproducibility and auditing.
+ - It MUST include (at minimum) the following fields (names may be exactly as below):
+    - "observation_trajectory_id": int
+    - "observation_T": int
+    - "num_simulations": int
+    - "num_posterior_samples": int
+    - "posterior_samples_mean": object mapping parameter_name -> float (same keys as optimized_parameters)
+    - "posterior_samples_std": object mapping parameter_name -> float (same keys as optimized_parameters)
+    - Any additional artifacts are allowed inside "calibration_artifacts" only.
+
+4. metrics schema
+ - Must be a JSON object containing at least:
+    - "train_loss": float (mean((true - pred)^2) computed over all training trajectories and all time steps, after simulator parameters are optimized. Scalar. Lower is better.)
+    - "val_loss": float (mean((true - pred)^2) computed over all validation trajectories and all time steps, after simulator parameters are optimized. Scalar. Lower is better.)
+    - "test_loss": float (mean((true - pred)^2) computed over all test trajectories and all time steps, after simulator parameters are optimized. Scalar. Lower is better.)
+    - "val_loss_per_dim": object with exactly 4 keys:
+       - "inventory": float
+       - "backlog": float
+       - "pipeline_len": float
+       - "t": float
+    - Where val_loss_per_dim corresponds to the 4D vector: val_loss_per_dim = [inventory_mse, backlog_mse, pipeline_len_mse, t_mse].
+
+5. Write validation prediction CSV
+ - Write val_predicted_mean_trajectories.csv (exact filename) to --output_dir.
+ - The file must contain the mean predicted validation trajectory per (trajectory_id, time_step).
+ - Required columns (at minimum):
+    - trajectory_id
+    - time_step
+    - inventory
+    - backlog
+    - pipeline_len
+    - t
+ - If you run K stochastic rollouts per trajectory, store the mean across rollouts; if K=1, store that single rollout.
