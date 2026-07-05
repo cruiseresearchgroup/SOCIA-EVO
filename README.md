@@ -1,8 +1,6 @@
 
 # 🌆 SOCIA-EVO: Automated Simulator Construction via Dual-Anchored Bi-Level Optimization
 
-<p align="center"><i>The work is in rapid progress...</i></p>
-
 <!-- Illustration Image Placeholder -->
 
 <p align="center">
@@ -11,9 +9,8 @@
 
 <!-- Replace this with your actual architecture diagram -->
 
-An LLM-driven multi-agent Cyber-Physical-Social simulation generator that automatically creates simulation environments based on user requirements and data.
-
-For more details about SOCIA, please check out our [paper](https://arxiv.org/abs/2505.12006).
+This paper introduces SOCIA-EVO, a framework that automatically builds data-grounded simulators by anchoring constraints, separating structure from parameters, and validating repair strategies through metrics.
+For more details about SOCIA, please check out our [paper](https://arxiv.org/abs/2604.17351).
 
 If you use SOCIA in your research, please cite:
 ```bibtex
