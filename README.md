@@ -10,6 +10,7 @@
 <!-- Replace this with your actual architecture diagram -->
 
 This paper introduces SOCIA-EVO, a framework that automatically builds data-grounded simulators by anchoring constraints, separating structure from parameters, and validating repair strategies through metrics.
+
 For more details about SOCIA, please check out our [paper](https://arxiv.org/abs/2604.17351).
 
 If you use SOCIA in your research, please cite:
