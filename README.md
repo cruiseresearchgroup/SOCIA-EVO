@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="docs/images/socia_logo_large.png" alt="SOCIA Logo" width="200px" />
-</p>
 
 # 🌆 SOCIA-EVO: Automated Simulator Construction via Dual-Anchored Bi-Level Optimization
 
